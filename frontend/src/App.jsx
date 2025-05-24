@@ -7,6 +7,18 @@ import 'prismjs/themes/prism.css';
 import axios from 'axios';
 import './App.css';
 
+/*
+  AlgoU Online Code Compiler – React front-end
+  ------------------------------------------------
+  1️⃣  A <select> lets the user choose a language (currently only C++ is wired-up).
+  2️⃣  `react-simple-code-editor` gives us a light-weight code editor component.
+  3️⃣  When the **Run** button is clicked we POST the source code to the back-end.
+  4️⃣  The server responds with the program output which we display underneath.
+
+  NOTE: Everything is kept inside a single functional component for simplicity,
+        but feel free to break this up into smaller pieces once the app grows.
+*/
+
 function App() {
   const [code, setCode] = useState(`
   // Include the input/output stream library
@@ -23,13 +35,22 @@ function App() {
   const [output, setOutput] = useState('');
 
   const handleSubmit = async () => {
+    /*
+      STEP-BY-STEP of what happens here:
+      1. We build the payload expected by the Express server.
+      2. We send it with Axios (POST request).
+      3. On success we store the returned `output` in local state so React can
+         re-render the <output> area.
+      4. Errors (compile-time or server issues) are logged for now – you may want
+         to surface them in the UI later.
+    */
     const payload = {
       language: 'cpp',
       code
     };
 
     try {
-      const { data } = await axios.post('http://localhost:5000/run', payload);
+      const { data } = await axios.post(import.meta.env.VITE_BACKEND_URL, payload);
       console.log(data);
       setOutput(data.output);
     } catch (error) {
