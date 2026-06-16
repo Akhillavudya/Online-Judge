@@ -96,3 +96,21 @@ def init_database() -> None:
             )
             """
         )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS judge_submissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                problem_id INTEGER NOT NULL,
+                language TEXT NOT NULL,
+                code TEXT NOT NULL,
+                verdict TEXT NOT NULL,
+                passed_count INTEGER NOT NULL DEFAULT 0,
+                total_count INTEGER NOT NULL DEFAULT 0,
+                runtime_ms INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+                FOREIGN KEY (problem_id) REFERENCES problems (id) ON DELETE CASCADE
+            )
+            """
+        )

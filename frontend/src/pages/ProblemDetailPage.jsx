@@ -1,10 +1,23 @@
 import Editor from '@monaco-editor/react';
-import { ArrowLeft, FlaskConical, ScrollText, Terminal, TextCursorInput } from 'lucide-react';
+import { ArrowLeft, FlaskConical, History, ScrollText, Send, Terminal, TextCursorInput } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import CompilerNavbar from '../components/CompilerNavbar';
 import Panel from '../components/Panel';
 import { api } from '../lib/api';
+
+// Human-readable label + colors for each verdict code from the judge.
+const verdictMeta = {
+  AC: { label: 'Accepted', style: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40' },
+  WA: { label: 'Wrong Answer', style: 'bg-rose-500/15 text-rose-300 border-rose-500/40' },
+  TLE: { label: 'Time Limit Exceeded', style: 'bg-amber-500/15 text-amber-300 border-amber-500/40' },
+  RE: { label: 'Runtime Error', style: 'bg-orange-500/15 text-orange-300 border-orange-500/40' },
+  CE: { label: 'Compilation Error', style: 'bg-violet-500/15 text-violet-300 border-violet-500/40' },
+};
+
+function verdictInfo(code) {
+  return verdictMeta[code] || { label: code, style: 'bg-slate-500/15 text-slate-300 border-slate-500/40' };
+}
 
 const starterCode = {
   cpp: `#include <iostream>
@@ -45,6 +58,19 @@ function ProblemDetailPage() {
   const [status, setStatus] = useState('Ready');
   const [isBusy, setIsBusy] = useState(false);
 
+  const [result, setResult] = useState(null); // latest verdict {verdict, passed_count, ...}
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissions, setSubmissions] = useState([]);
+
+  async function loadSubmissions() {
+    try {
+      const { data } = await api.get(`/problems/${slug}/submissions`);
+      setSubmissions(data.submissions);
+    } catch {
+      setSubmissions([]);
+    }
+  }
+
   useEffect(() => {
     async function loadProblem() {
       try {
@@ -60,6 +86,7 @@ function ProblemDetailPage() {
       }
     }
     loadProblem();
+    loadSubmissions();
   }, [slug]);
 
   function handleLanguageChange(nextLanguage) {
@@ -96,6 +123,30 @@ function ProblemDetailPage() {
       setStatus(error.response?.data?.detail || 'Save failed');
     } finally {
       setIsBusy(false);
+    }
+  }
+
+  async function handleSubmit() {
+    if (!problem) return;
+    setIsSubmitting(true);
+    setStatus('Judging');
+    setResult(null);
+    try {
+      const { data } = await api.post(`/problems/${slug}/submit`, { language, code });
+      setResult(data.result);
+      setStatus(data.result.verdict === 'AC' ? 'Accepted' : data.result.verdict);
+      loadSubmissions(); // refresh history with the new attempt
+    } catch (error) {
+      setStatus('Submit failed');
+      setResult({
+        verdict: 'ERR',
+        passed_count: 0,
+        total_count: 0,
+        runtime_ms: 0,
+        detail: error.response?.data?.detail || 'Could not judge the submission.',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -172,13 +223,44 @@ function ProblemDetailPage() {
                   ))}
                 </div>
               </Panel>
+
+              <Panel title="My Submissions" icon={<History size={16} />}>
+                <div className="p-3">
+                  {submissions.length === 0 ? (
+                    <p className="px-2 py-3 text-sm text-slate-400">No submissions yet. Write a solution and hit Submit.</p>
+                  ) : (
+                    <ul className="divide-y divide-slate-800">
+                      {submissions.map((sub) => (
+                        <li key={sub.id} className="flex items-center justify-between gap-3 px-2 py-2 text-sm">
+                          <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${verdictInfo(sub.verdict).style}`}>
+                            {sub.verdict}
+                          </span>
+                          <span className="text-slate-400">{sub.passed_count}/{sub.total_count} passed</span>
+                          <span className="text-slate-500">{sub.runtime_ms} ms</span>
+                          <span className="ml-auto text-xs text-slate-600">{new Date(sub.created_at).toLocaleTimeString()}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </Panel>
             </div>
 
             {/* Right: editor + run */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-[#161b22] px-4 py-2.5">
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-[#161b22] px-4 py-2.5">
                 <p className="text-sm font-semibold text-slate-200">Your Solution</p>
-                <p className={`text-sm font-semibold ${status === 'Failed' ? 'text-rose-300' : 'text-emerald-300'}`}>{status}</p>
+                <div className="flex items-center gap-3">
+                  <p className={`text-sm font-semibold ${status === 'Failed' || status === 'Submit failed' ? 'text-rose-300' : 'text-emerald-300'}`}>{status}</p>
+                  <button
+                    className="inline-flex h-9 items-center gap-2 rounded-md bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || isBusy}
+                  >
+                    <Send size={15} />
+                    {isSubmitting ? 'Judging…' : 'Submit'}
+                  </button>
+                </div>
               </div>
 
               <section className="overflow-hidden rounded-lg border border-slate-800 bg-[#1e1e1e]">
@@ -200,6 +282,19 @@ function ProblemDetailPage() {
                 </div>
               </section>
 
+              {result && (
+                <div className={`rounded-lg border p-4 ${verdictInfo(result.verdict).style}`}>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="text-base font-bold">{verdictInfo(result.verdict).label}</span>
+                    <span className="text-sm opacity-90">{result.passed_count}/{result.total_count} test cases passed</span>
+                    {result.runtime_ms > 0 && <span className="text-sm opacity-75">{result.runtime_ms} ms</span>}
+                  </div>
+                  {result.detail && (
+                    <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-xs opacity-90">{result.detail}</pre>
+                  )}
+                </div>
+              )}
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <Panel title="Input" icon={<TextCursorInput size={16} />}>
                   <textarea
@@ -215,8 +310,8 @@ function ProblemDetailPage() {
               </div>
 
               <p className="rounded-md border border-slate-800 bg-[#161b22] px-4 py-2 text-xs text-slate-400">
-                Tip: use <span className="text-slate-200">Run</span> to test against your own input. Automatic judging
-                against all hidden test cases (verdicts like Accepted / Wrong Answer) arrives in Phase 2.
+                Tip: <span className="text-slate-200">Run</span> tests against your own input only.
+                <span className="text-violet-300"> Submit</span> judges your code against all hidden test cases and gives a verdict.
               </p>
             </div>
           </div>

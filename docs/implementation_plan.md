@@ -102,9 +102,15 @@ distinction is exactly how real judges work.
 
 ---
 
-### Phase 2 — Judging engine & verdicts (⭐ the heart of the project)
+### Phase 2 — Judging engine & verdicts (⭐ the heart of the project) ✅ DONE
 
 **Goal:** A user submits code to a problem and gets an automatic verdict.
+
+> Implemented — see `docs/backend_explanation/02_judging_engine.md` and
+> `docs/frontend_explanation/02_submit_and_verdict.md`. `judge_submissions` table,
+> `services/judge.py` (compile-once + run all cases), `POST /problems/{slug}/submit`
+> and `GET /problems/{slug}/submissions`; frontend Submit button + color-coded
+> verdict card + history. All five verdicts (AC/WA/TLE/RE/CE) verified with g++.
 
 **Concept:** Reuse your existing `services/executor.py`, but instead of returning
 raw output, **run the code against every test case** and compare output to the

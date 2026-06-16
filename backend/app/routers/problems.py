@@ -14,13 +14,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.db.repositories import problems, test_cases
+from app.db.repositories import judge_submissions, problems, test_cases
 from app.dependencies import get_current_user
+from app.schemas.judge import JudgeResultOut, JudgeSubmissionOut, SubmitRequest
 from app.schemas.problem import (
     ProblemCreateRequest,
     ProblemDetailOut,
     ProblemSummaryOut,
 )
+from app.services.judge import SUPPORTED_LANGUAGE, judge_submission
 
 router = APIRouter(prefix="/problems", tags=["problems"])
 
@@ -58,6 +60,70 @@ def get_problem(slug: str):
 
     sample_rows = test_cases.list_sample_test_cases(problem["id"])
     return {"problem": ProblemDetailOut.from_row(problem, sample_rows)}
+
+
+@router.post("/{slug}/submit")
+def submit_solution(
+    slug: str,
+    request: SubmitRequest,
+    current_user: Annotated[sqlite3.Row, Depends(get_current_user)],
+):
+    """Judge a submission against ALL of a problem's test cases and store the result."""
+    problem = problems.get_problem_by_slug(slug)
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found.")
+
+    if request.language != SUPPORTED_LANGUAGE:
+        raise HTTPException(status_code=400, detail="Only C++ is supported right now.")
+
+    cases = test_cases.list_all_test_cases(problem["id"])
+    if not cases:
+        raise HTTPException(status_code=400, detail="This problem has no test cases yet.")
+
+    report = judge_submission(
+        language=request.language,
+        code=request.code,
+        test_cases=cases,
+        time_limit_ms=problem["time_limit_ms"],
+    )
+
+    saved = judge_submissions.create_judge_submission(
+        user_id=current_user["id"],
+        problem_id=problem["id"],
+        language=request.language,
+        code=request.code,
+        verdict=report["verdict"],
+        passed_count=report["passed_count"],
+        total_count=report["total_count"],
+        runtime_ms=report["runtime_ms"],
+    )
+
+    return {
+        "result": JudgeResultOut(
+            id=saved["id"],
+            language=saved["language"],
+            verdict=saved["verdict"],
+            passed_count=saved["passed_count"],
+            total_count=saved["total_count"],
+            runtime_ms=saved["runtime_ms"],
+            created_at=saved["created_at"],
+            detail=report["detail"],
+        )
+    }
+
+
+@router.get("/{slug}/submissions")
+def list_problem_submissions(
+    slug: str,
+    current_user: Annotated[sqlite3.Row, Depends(get_current_user)],
+):
+    """Return the current user's previous attempts at this problem (newest first)."""
+    problem = problems.get_problem_by_slug(slug)
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found.")
+
+    rows = judge_submissions.list_judge_submissions(current_user["id"], problem["id"])
+    return {"submissions": [JudgeSubmissionOut.from_row(row) for row in rows]}
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
