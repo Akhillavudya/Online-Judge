@@ -1,0 +1,333 @@
+# Online Judge — End-to-End Implementation Plan
+
+> A phase-by-phase roadmap to grow this project from a code runner into a real
+> online judge (like Codeforces / LeetCode / GeeksforGeeks), then deploy it.
+>
+> **Design philosophy:** keep it simple. Every choice here is something a B.Tech
+> final-year student with average React + FastAPI can build and *explain* in an
+> interview. We deliberately avoid heavy architecture (microservices, Kafka,
+> Kubernetes). A little complexity is fine where it's standard (Docker sandbox,
+> JWT, Postgres) — those are exactly the things interviewers like to hear about.
+
+---
+
+## Where the project is today (Phase 0 — DONE ✅)
+
+You already have a solid foundation:
+
+- **Auth** — register / login / logout with hashed passwords + bearer tokens.
+- **Submissions** — save / list / edit / delete code snippets per user.
+- **Run code** — compile & run C++ with `g++` (5s timeout).
+- **AI review** — Gemini-powered code feedback.
+- **Clean layered backend** — `routers → services → repositories` (see
+  `docs/backend_explanation/00_backend_overview.md`).
+
+**What's missing to be a real "judge":** problems, hidden test cases, and an
+automatic **verdict** (Accepted / Wrong Answer / TLE…). That's Phases 1–2 and the
+single most important thing for impressing an interviewer.
+
+---
+
+## The big picture (what we're building)
+
+```
+User browses Problems  →  opens a Problem  →  writes code  →  Submits
+                                                                  │
+                                                                  ▼
+                                                   Judge runs code against
+                                                   ALL hidden test cases
+                                                                  │
+                                                                  ▼
+                              Verdict: Accepted ✅ / Wrong Answer ❌ / TLE ⏱ / …
+                                                                  │
+                                                                  ▼
+                          Saved to submission history + updates user's solved count
+```
+
+Everything else (tags, difficulty, search, leaderboard, contests) is polish
+*around* this core loop.
+
+---
+
+## Phase-by-phase roadmap
+
+Each phase is shippable on its own. Build them in order — later phases assume the
+earlier ones exist. Suggested effort assumes part-time work.
+
+| Phase | Theme | Why it matters in interviews |
+| ----- | ----- | ---------------------------- |
+| 1 | Problems | Turns the app into a judge; shows data modeling |
+| 2 | Judging engine + verdicts | **The core.** Shows algorithms + system thinking |
+| 3 | Submission history & status | Shows real product UX |
+| 4 | Problem discovery (list/filter/search) | Shows pagination & query design |
+| 5 | Multi-language support | Shows extensible design |
+| 6 | Roles & admin panel | Shows authorization, not just authentication |
+| 7 | Profiles & leaderboard | Shows aggregation queries; engagement |
+| 8 | Secure sandboxed execution | **Big interview talking point** |
+| 9 | Hardening (pagination, rate limit, validation) | Shows production awareness |
+| 10 | Testing + CI | Shows engineering maturity |
+| 11 | Deployment | Shows you can ship |
+| 12 | Optional wow-features (contests, etc.) | Stretch goals |
+
+---
+
+### Phase 1 — Problems (the content the judge serves) ✅ DONE
+
+**Goal:** Users can browse problems and read a problem statement.
+
+> Implemented — see `docs/backend_explanation/01_problems.md` and
+> `docs/frontend_explanation/01_problems_pages.md`. Endpoints `GET /problems`,
+> `GET /problems/{slug}` (sample cases only), `POST /problems`; frontend
+> `ProblemsPage` + `ProblemDetailPage`; 3 seeded problems via `seed_problems.py`.
+
+**Data model (new tables):**
+- `problems` — `id, title, slug, statement, input_format, output_format,
+  constraints, difficulty (easy/medium/hard), time_limit_ms, memory_limit_mb,
+  created_by, created_at`.
+- `test_cases` — `id, problem_id, input, expected_output, is_sample (bool)`.
+  *Sample* cases are shown to the user; the rest are hidden and used for judging.
+
+**Backend (`backend/app/`):**
+- `db/repositories/problems.py`, `db/repositories/test_cases.py` (all SQL here).
+- `schemas/problem.py` — `ProblemOut`, `ProblemDetailOut`, `ProblemCreateRequest`.
+- `routers/problems.py` — `GET /problems`, `GET /problems/{slug}` (returns the
+  statement + **only sample** test cases).
+
+**Frontend (`frontend/src/`):**
+- `pages/Problems.jsx` — list of problems (title, difficulty).
+- `pages/ProblemDetail.jsx` — statement + sample cases + the existing code editor.
+
+**Interview value:** clean relational modeling; the sample-vs-hidden test-case
+distinction is exactly how real judges work.
+
+---
+
+### Phase 2 — Judging engine & verdicts (⭐ the heart of the project)
+
+**Goal:** A user submits code to a problem and gets an automatic verdict.
+
+**Concept:** Reuse your existing `services/executor.py`, but instead of returning
+raw output, **run the code against every test case** and compare output to the
+expected output.
+
+**Verdicts (keep this exact set — it mirrors Codeforces):**
+| Verdict | Meaning |
+| ------- | ------- |
+| `AC` Accepted | All test cases passed |
+| `WA` Wrong Answer | Output differs on some case |
+| `TLE` Time Limit Exceeded | A case exceeded the problem's time limit |
+| `RE` Runtime Error | Program crashed / non-zero exit |
+| `CE` Compilation Error | Code didn't compile |
+
+**Data model:**
+- Extend `submissions` (or add a new `judge_submissions` table) with:
+  `problem_id, verdict, passed_count, total_count, runtime_ms, language`.
+
+**Backend:**
+- `services/judge.py` — new service:
+  1. compile once (CE if it fails),
+  2. loop over test cases, run with the problem's time limit,
+  3. compare trimmed output → decide verdict (stop early on first failure),
+  4. return verdict + how many cases passed.
+- `routers/submissions.py` (or new `routers/judge.py`) — `POST /problems/{slug}/submit`.
+
+**Frontend:**
+- "Submit" button beside "Run". Show a result card: verdict badge, `passed/total`,
+  runtime. Color-code (green AC, red WA, etc.).
+
+**Keep it simple:** judge **synchronously** at first (request waits for the
+result). Mention in interviews that a production judge would use a **queue +
+worker** (see Phase 12) — knowing *why* is enough; you don't have to build it.
+
+**Interview value:** This is the story you tell. Output comparison, time limits,
+early-exit, verdict logic = real problem-solving.
+
+---
+
+### Phase 3 — Submission history & status
+
+**Goal:** Every submission is recorded and viewable.
+
+- `GET /problems/{slug}/submissions` (the current user's attempts on a problem).
+- `GET /submissions` already exists — extend to show verdict + problem.
+- Frontend: a "My Submissions" table (problem, verdict, language, time).
+- Mark a problem as **Solved** for a user once they get `AC` (used in Phase 7).
+
+**Interview value:** product thinking + showing state over time.
+
+---
+
+### Phase 4 — Problem discovery (list, filter, search, pagination)
+
+**Goal:** Browse like LeetCode's problem set.
+
+- **Filters:** by difficulty and by tag. (Add a `tags` column or a simple
+  `problem_tags` table.)
+- **Search:** by title (`WHERE title LIKE ?`).
+- **Pagination:** `GET /problems?page=1&limit=20` — return items + total count.
+- Frontend: filter dropdowns, a search box, a "Solved ✓" indicator per row.
+
+**Interview value:** pagination and query parameters are a classic interview topic.
+
+---
+
+### Phase 5 — Multi-language support
+
+**Goal:** Let users solve in more than C++.
+
+- Start with **Python** (easiest — no compile step, just `python file.py`), then
+  optionally **Java** / **C**.
+- Refactor `services/executor.py` into a small per-language strategy: a dict
+  mapping `language → {extension, compile_cmd, run_cmd}`. The judge loop stays the
+  same.
+- Frontend: language dropdown in the editor (you already send `language`).
+
+**Interview value:** the "open/closed principle" in practice — adding a language
+shouldn't change the judge.
+
+---
+
+### Phase 6 — Roles & admin panel
+
+**Goal:** Only admins can create problems and test cases.
+
+- Add `role` (`user` / `admin`) to the `users` table.
+- A `require_admin` dependency (built on your existing `get_current_user`).
+- Admin endpoints: create/edit problems, add test cases (`POST /admin/problems`…).
+- A minimal admin page in the frontend (a form — doesn't need to be pretty).
+
+**Interview value:** the difference between **authentication** (who you are) and
+**authorization** (what you're allowed to do) — interviewers love this distinction.
+
+---
+
+### Phase 7 — Profiles & leaderboard
+
+**Goal:** Engagement + showing aggregation queries.
+
+- **Profile page:** total solved, solved-by-difficulty, recent submissions.
+- **Leaderboard:** rank users by number of problems solved
+  (`GROUP BY user_id ... ORDER BY solved DESC`).
+- Optional: a simple submissions "heatmap" / streak (nice visual, low effort).
+
+**Interview value:** `GROUP BY` / `COUNT` aggregation and a tiny bit of ranking
+logic.
+
+---
+
+### Phase 8 — Secure sandboxed execution (⭐ big talking point)
+
+**Goal:** Run untrusted user code safely. **Right now your judge runs code
+directly on the host — that's the one real risk to call out.**
+
+Keep it simple but correct:
+- Run each submission inside a **Docker container** with:
+  - no network access (`--network none`),
+  - CPU/memory limits (`--memory`, `--cpus`),
+  - a non-root user and a read-only filesystem,
+  - the time limit you already enforce.
+- The judge service shells out to `docker run …` instead of running the binary
+  directly.
+
+**Interview value:** This single feature signals you understand *security* and
+*operating a judge*. Even explaining the threat model well is impressive. (If
+Docker-in-deploy is too much, at minimum document the risk and the plan.)
+
+---
+
+### Phase 9 — Hardening for the real world
+
+Small, high-signal production touches:
+- **Pagination everywhere** that returns lists.
+- **Rate limiting** on `/run` and `/submit` (e.g. `slowapi`) so nobody abuses the
+  compiler.
+- **Consistent error responses** and input validation (Pydantic already helps).
+- **Logging** of submissions and errors.
+- **CORS / env config** reviewed for production (you already have `config.py`).
+
+**Interview value:** shows you think beyond the happy path.
+
+---
+
+### Phase 10 — Testing + CI
+
+- **Backend tests** with `pytest` — auth, a problem, and a judge run (AC + WA).
+  (You'll need to add `httpx` for FastAPI's `TestClient`.)
+- **GitHub Actions** workflow that runs the tests on every push.
+- Optional: a few frontend component tests.
+
+**Interview value:** automated tests + green CI badge = engineering maturity.
+
+---
+
+### Phase 11 — Deployment (ship it 🚀)
+
+Keep the stack cheap and simple:
+- **Database:** move from SQLite to **Postgres** for production (managed free tier
+  on Railway/Render/Supabase). Your repository layer means only `db/` changes.
+- **Backend:** containerize with a `Dockerfile` (install `g++`/compilers), deploy
+  to **Render** or **Railway**. Set env vars (`CORS_ORIGIN`, DB URL, `GEMINI_*`).
+- **Frontend:** deploy the Vite build to **Vercel** or **Netlify**; point
+  `VITE_API_URL` at the backend.
+- **Docs:** update `README.md` with a live demo link and setup steps.
+
+**Interview value:** "here's the live link" beats any slide. Be ready to explain
+the deploy diagram (frontend host → backend host → DB).
+
+---
+
+### Phase 12 — Optional "wow" features (stretch goals)
+
+Only after the core is solid. Pick 1–2 that excite you:
+- **Contests** — a problem set with a start/end time and a contest leaderboard
+  (simplified Codeforces rounds).
+- **Async judging with a queue** — submissions go to a queue; a background worker
+  judges them and updates the verdict (your interview answer to "how does this
+  scale?"). Even a simple in-process background task counts.
+- **Code editor upgrade** — Monaco editor (the VS Code editor) for syntax
+  highlighting.
+- **Discussion / editorial** per problem.
+- **Partial scoring / subtasks** (GfG-style).
+
+---
+
+## Suggested build order (cheat sheet)
+
+```
+1  Problems  →  2  Judging+Verdicts  →  3  History  →  4  Discovery
+        →  5  Languages  →  6  Admin  →  7  Profiles/Leaderboard
+        →  8  Sandbox  →  9  Hardening  →  10  Tests/CI  →  11  Deploy
+        →  12  (optional) Contests / async queue
+```
+
+**Minimum to call it an "Online Judge" in your resume:** Phases 1–3.
+**Minimum to genuinely impress:** Phases 1–8 + 11 (deployed, sandboxed judge with
+verdicts, multi-language, admin).
+
+---
+
+## How this maps to the existing code
+
+| New work | Where it goes (reuse the current structure) |
+| -------- | ------------------------------------------- |
+| New tables | `db/database.py` (`init_database`) |
+| New SQL | `db/repositories/<name>.py` |
+| Request/response shapes | `schemas/<name>.py` |
+| Business logic (judge, languages) | `services/<name>.py` |
+| New endpoints | `routers/<name>.py` + register in `main.py` |
+| Auth/role checks | extend `dependencies.py` |
+
+**Remember the project rule:** every feature above gets its own explanation doc in
+`docs/backend_explanation/` or `docs/frontend_explanation/` (see `docs/README.md`).
+
+---
+
+## A note on staying simple
+
+- Keep **synchronous judging** until you actually need scale — then talk about
+  queues, don't necessarily build them.
+- Keep **SQLite** for development; only switch to Postgres at deployment.
+- Don't add a feature you can't explain. Depth on Phases 1–2 + 8 beats a long
+  shallow feature list.
+
+*This is a living plan — tick off phases as you go and adjust freely.*

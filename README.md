@@ -4,88 +4,105 @@ An end-to-end web application that lets you write, compile, and execute code dir
 
 The project is split into two independently runnable parts:
 
-1. **backend** – A lightweight Express server that receives source-code, stores it temporarily, compiles it with `g++`, then streams the program output back to the client.
-2. **frontend** – A React + Vite single-page application that provides a minimal online IDE and communicates with the backend via REST.
+1. **backend** - A lightweight FastAPI server that receives source code, stores it temporarily, compiles it with `g++`, then returns the program output to the client.
+2. **frontend** - A React + Vite single-page application that provides a minimal online IDE and communicates with the backend through REST.
 
----
+## Features
 
-## ✨ Features
+- Live browser code editing powered by `react-simple-code-editor` and Prism syntax highlighting.
+- One-click **Run** button that posts code to the API and displays the output below the editor.
+- Email/password authentication with bearer tokens.
+- CRUD for saved C++ submissions per logged-in user.
+- AI code review for authenticated users using the Gemini Flash model.
+- Modular execution pipeline. Only C++ is wired up right now, but more languages can be added with separate executor helpers.
 
-• Live, in-browser code editing powered by `react-simple-code-editor` and Prism syntax highlighting.
+## Installation
 
-• One-click **Run** button – code is POSTed to the server, compiled, and the result appears instantly below the editor.
-
-• Modular execution pipeline – only C++ is wired-up at the moment, but adding more languages is as simple as creating an `execute<LANG>.js` helper and a small switch-case.
-
----
-
-## 🛠 Installation
-
-> These commands assume you have **Node.js ≥ 18** and **npm** installed.
-
-1. Clone the repo & move into the project folder:
+These commands assume you have **Node.js 18+**, **npm**, **Python 3.10+**, and `g++` installed.
 
 ```bash
-$ git clone https://github.com/your-username/AlgoU-Online-Compiler.git
-$ cd AlgoU-Online-Compiler
+git clone https://github.com/your-username/AlgoU-Online-Compiler.git
+cd AlgoU-Online-Compiler
 ```
 
-2. Install dependencies for both workspaces:
+Install the FastAPI backend dependencies:
 
 ```bash
-# Back-end
-$ cd backend && npm install
-
-# Front-end
-$ cd ../frontend && npm install
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-3. (Optional) copy the environment variable template and tweak if necessary:
+Install the React frontend dependencies:
 
 ```bash
-$ cp backend/.env.example backend/.env
+cd ..\frontend
+npm install
 ```
 
----
+## Running The Project
 
-## ▶️ Running the project
+Open two terminals, one for each side of the stack.
 
-Open two terminals – one for each side of the stack:
+Terminal 1 - API:
 
 ```bash
-# Terminal 1 – API
-$ cd backend
-$ npm run dev        # Auto-restarts with nodemon
-
-# Terminal 2 – React SPA
-$ cd frontend
-$ npm run dev        # Starts Vite on http://localhost:5173
+cd backend
+.venv\Scripts\activate
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The React app expects the API to be reachable at `http://localhost:5000`. If you change the port, make sure to update the Axios URL inside `frontend/src/App.jsx`.
+Terminal 2 - React SPA:
 
----
+```bash
+cd frontend
+npm run dev
+```
 
-## 📦 Example usage
+The React app should call the API at:
 
-1. Type or paste some C++ code into the editor.
+```env
+VITE_API_URL=http://localhost:8000
+```
+
+Set these backend variables for AI review:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-1.5-flash
+```
+
+## API Endpoints
+
+- `POST /auth/register` - create a user and return a token.
+- `POST /auth/login` - login and return a token.
+- `GET /auth/me` - fetch the current user with `Authorization: Bearer <token>`.
+- `POST /auth/logout` - delete the current token.
+- `POST /submissions` - create a saved program.
+- `GET /submissions` - list the logged-in user's programs.
+- `GET /submissions/{id}` - read one saved program.
+- `PUT /submissions/{id}` - update one saved program.
+- `DELETE /submissions/{id}` - delete one saved program.
+- `POST /ai/review` - review C++ code with Gemini Flash. Requires `Authorization: Bearer <token>`.
+
+## Example Usage
+
+1. Type or paste C++ code into the editor.
 2. Click **Run**.
-3. The program output appears in the grey box underneath.
+3. The program output appears below the editor.
 
 ![Screenshot](frontend/Snapshot.png)
 
----
+## Dependencies
 
-## ⚙️ Dependencies
+Backend:
 
-### Back-end
+- fastapi
+- uvicorn
+- python-dotenv
 
-- express
-- cors
-- uuid
-- nodemon (development)
-
-### Front-end
+Frontend:
 
 - react + react-dom
 - vite
@@ -93,22 +110,6 @@ The React app expects the API to be reachable at `http://localhost:5000`. If you
 - prismjs
 - tailwindcss + postcss + autoprefixer
 
-A full, pinned list can be found in each workspace's `package.json` file.
+## Important Security Note
 
----
-
-## 🤝 Contributing
-
-Pull-requests are welcome! Please open an issue first so we can discuss what you plan to change.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feat/amazing-feature`)
-3. Commit your changes (`git commit -m "feat: add amazing feature"`)
-4. Push to the branch (`git push origin feat/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-MIT © 2024 Your Name
+This project executes user-submitted code. FastAPI improves the API structure, but it does not sandbox code execution. Do not expose this backend publicly without container isolation, strict resource limits, cleanup jobs, and input/output controls.

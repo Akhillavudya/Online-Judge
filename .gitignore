@@ -1,0 +1,38 @@
+# ---- Python (backend) ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ---- Databases ----
+*.db
+*.sqlite3
+
+# ---- Environment / secrets ----
+.env
+.env.local
+.env.*.local
+
+# ---- Compiler workspace (generated at runtime) ----
+backend/codes/
+backend/outputs/
+
+# ---- Node (frontend) ----
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# ---- Editor / OS ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- Logs ----
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
