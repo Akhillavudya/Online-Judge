@@ -61,3 +61,49 @@ def list_judge_submissions(user_id: int, problem_id: int) -> list[sqlite3.Row]:
             """,
             (user_id, problem_id),
         ).fetchall()
+
+
+def list_all_judge_submissions(user_id: int) -> list[sqlite3.Row]:
+    """Return ALL of a user's judged attempts across every problem, newest first.
+
+    Joins ``problems`` so each row carries the problem's title and slug, which the
+    "My Submissions" page uses to label and link each attempt.
+    """
+    with get_connection() as connection:
+        return connection.execute(
+            """
+            SELECT
+                js.id,
+                js.language,
+                js.verdict,
+                js.passed_count,
+                js.total_count,
+                js.runtime_ms,
+                js.created_at,
+                p.title AS problem_title,
+                p.slug AS problem_slug
+            FROM judge_submissions AS js
+            JOIN problems AS p ON p.id = js.problem_id
+            WHERE js.user_id = ?
+            ORDER BY js.id DESC
+            """,
+            (user_id,),
+        ).fetchall()
+
+
+def list_solved_problem_slugs(user_id: int) -> list[str]:
+    """Return the slugs of every problem the user has an Accepted (AC) verdict on.
+
+    A problem counts as *solved* the moment any one submission earns ``AC``.
+    """
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT DISTINCT p.slug
+            FROM judge_submissions AS js
+            JOIN problems AS p ON p.id = js.problem_id
+            WHERE js.user_id = ? AND js.verdict = 'AC'
+            """,
+            (user_id,),
+        ).fetchall()
+    return [row["slug"] for row in rows]

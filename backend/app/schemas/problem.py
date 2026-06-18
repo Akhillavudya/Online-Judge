@@ -32,6 +32,7 @@ class ProblemCreateRequest(BaseModel):
     difficulty: Difficulty = "easy"
     time_limit_ms: int = Field(default=2000, ge=100, le=15000)
     memory_limit_mb: int = Field(default=256, ge=16, le=1024)
+    tags: list[str] = Field(default_factory=list)
     test_cases: list[TestCaseIn] = Field(default_factory=list)
 
 
@@ -55,10 +56,22 @@ class ProblemSummaryOut(BaseModel):
     slug: str
     difficulty: str
     created_at: str
+    tags: list[str] = []
 
     @classmethod
-    def from_row(cls, row: sqlite3.Row) -> "ProblemSummaryOut":
-        return cls.model_validate(dict(row))
+    def from_row(cls, row: sqlite3.Row, tags: list[str] | None = None) -> "ProblemSummaryOut":
+        data = dict(row)
+        data["tags"] = tags or []
+        return cls.model_validate(data)
+
+
+class ProblemListOut(BaseModel):
+    """A paginated page of problems plus the total count for the pager."""
+
+    problems: list[ProblemSummaryOut]
+    total: int
+    page: int
+    limit: int
 
 
 class ProblemDetailOut(BaseModel):
@@ -75,6 +88,7 @@ class ProblemDetailOut(BaseModel):
     time_limit_ms: int
     memory_limit_mb: int
     created_at: str
+    tags: list[str] = []
     sample_test_cases: list[TestCaseSampleOut]
 
     @classmethod
@@ -82,8 +96,10 @@ class ProblemDetailOut(BaseModel):
         cls,
         row: sqlite3.Row,
         sample_rows: list[sqlite3.Row],
+        tags: list[str] | None = None,
     ) -> "ProblemDetailOut":
         """Build the detail view from a problem row + its sample test-case rows."""
         data = dict(row)
+        data["tags"] = tags or []
         data["sample_test_cases"] = [TestCaseSampleOut.from_row(r) for r in sample_rows]
         return cls.model_validate(data)

@@ -53,16 +53,78 @@ def create_problem(
         ).fetchone()
 
 
-def list_problems() -> list[sqlite3.Row]:
-    """Return all problems, newest first (lightweight columns for the list view)."""
+def _build_filters(
+    search: str | None,
+    difficulty: str | None,
+    tag: str | None,
+) -> tuple[str, str, list]:
+    """Build the shared JOIN/WHERE clause (and params) for listing + counting.
+
+    Returns ``(join_sql, where_sql, params)`` so :func:`list_problems` and
+    :func:`count_problems` apply *exactly the same* filters — the count must match
+    the rows being paginated.
+    """
+    join_sql = ""
+    wheres: list[str] = []
+    params: list = []
+
+    if tag:
+        # Only join the tag tables when actually filtering by tag.
+        join_sql = (
+            " JOIN problem_tags AS pt ON pt.problem_id = p.id"
+            " JOIN tags AS t ON t.id = pt.tag_id"
+        )
+        wheres.append("t.name = ?")
+        params.append(tag.strip().lower())
+    if difficulty:
+        wheres.append("p.difficulty = ?")
+        params.append(difficulty)
+    if search:
+        wheres.append("p.title LIKE ?")
+        params.append(f"%{search}%")
+
+    where_sql = (" WHERE " + " AND ".join(wheres)) if wheres else ""
+    return join_sql, where_sql, params
+
+
+def list_problems(
+    search: str | None = None,
+    difficulty: str | None = None,
+    tag: str | None = None,
+    limit: int = 20,
+    offset: int = 0,
+) -> list[sqlite3.Row]:
+    """Return a page of problems matching the filters, newest first.
+
+    ``limit``/``offset`` implement pagination; ``search`` matches the title,
+    ``difficulty`` and ``tag`` narrow the set. All filters are optional.
+    """
+    join_sql, where_sql, params = _build_filters(search, difficulty, tag)
     with get_connection() as connection:
         return connection.execute(
-            """
-            SELECT id, title, slug, difficulty, created_at
-            FROM problems
-            ORDER BY id DESC
-            """
+            f"""
+            SELECT p.id, p.title, p.slug, p.difficulty, p.created_at
+            FROM problems AS p{join_sql}{where_sql}
+            ORDER BY p.id DESC
+            LIMIT ? OFFSET ?
+            """,
+            (*params, limit, offset),
         ).fetchall()
+
+
+def count_problems(
+    search: str | None = None,
+    difficulty: str | None = None,
+    tag: str | None = None,
+) -> int:
+    """Return how many problems match the filters (for the pagination total)."""
+    join_sql, where_sql, params = _build_filters(search, difficulty, tag)
+    with get_connection() as connection:
+        row = connection.execute(
+            f"SELECT COUNT(*) AS n FROM problems AS p{join_sql}{where_sql}",
+            params,
+        ).fetchone()
+    return row["n"]
 
 
 def get_problem_by_slug(slug: str) -> sqlite3.Row | None:

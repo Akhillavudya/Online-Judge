@@ -98,6 +98,25 @@ def init_database() -> None:
         )
         connection.execute(
             """
+            CREATE TABLE IF NOT EXISTS tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS problem_tags (
+                problem_id INTEGER NOT NULL,
+                tag_id INTEGER NOT NULL,
+                PRIMARY KEY (problem_id, tag_id),
+                FOREIGN KEY (problem_id) REFERENCES problems (id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+            )
+            """
+        )
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS judge_submissions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,

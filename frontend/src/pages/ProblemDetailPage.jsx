@@ -1,5 +1,5 @@
 import Editor from '@monaco-editor/react';
-import { ArrowLeft, FlaskConical, History, ScrollText, Send, Terminal, TextCursorInput } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, FlaskConical, History, ScrollText, Send, Terminal, TextCursorInput } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import CompilerNavbar from '../components/CompilerNavbar';
@@ -61,6 +61,9 @@ function ProblemDetailPage() {
   const [result, setResult] = useState(null); // latest verdict {verdict, passed_count, ...}
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissions, setSubmissions] = useState([]);
+
+  // Solved = the user has at least one Accepted verdict on this problem.
+  const isSolved = submissions.some((sub) => sub.verdict === 'AC');
 
   async function loadSubmissions() {
     try {
@@ -180,7 +183,23 @@ function ProblemDetailPage() {
                     <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${difficultyStyles[problem.difficulty] || difficultyStyles.easy}`}>
                       {problem.difficulty}
                     </span>
+                    {isSolved && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
+                        <CheckCircle2 size={13} />
+                        Solved
+                      </span>
+                    )}
                   </div>
+
+                  {problem.tags.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-1.5">
+                      {problem.tags.map((name) => (
+                        <span key={name} className="rounded border border-slate-700 bg-slate-800/60 px-1.5 py-0.5 text-[11px] text-slate-400">
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <p className="mb-4 whitespace-pre-line text-sm leading-6 text-slate-300">{problem.statement}</p>
 
                   {problem.input_format && (

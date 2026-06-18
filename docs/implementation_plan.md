@@ -150,12 +150,19 @@ early-exit, verdict logic = real problem-solving.
 
 ---
 
-### Phase 3 — Submission history & status
+### Phase 3 — Submission history & status ✅ DONE
 
 **Goal:** Every submission is recorded and viewable.
 
+> Implemented — see `docs/backend_explanation/03_submission_history.md` and
+> `docs/frontend_explanation/03_my_submissions_and_solved.md`. New `me` router:
+> `GET /me/submissions` (all attempts across problems, JOINed with the problem
+> title/slug) and `GET /me/solved` (slugs with an `AC`). Frontend `MySubmissions`
+> page at `/submissions` + nav link, and "Solved ✓" markers on the problem list
+> and problem-detail header. Per-problem history already shipped in Phase 2.
+
 - `GET /problems/{slug}/submissions` (the current user's attempts on a problem).
-- `GET /submissions` already exists — extend to show verdict + problem.
+- `GET /me/submissions` — all attempts across problems, with verdict + problem.
 - Frontend: a "My Submissions" table (problem, verdict, language, time).
 - Mark a problem as **Solved** for a user once they get `AC` (used in Phase 7).
 
@@ -163,14 +170,21 @@ early-exit, verdict logic = real problem-solving.
 
 ---
 
-### Phase 4 — Problem discovery (list, filter, search, pagination)
+### Phase 4 — Problem discovery (list, filter, search, pagination) ✅ DONE
 
 **Goal:** Browse like LeetCode's problem set.
 
-- **Filters:** by difficulty and by tag. (Add a `tags` column or a simple
-  `problem_tags` table.)
+> Implemented — see `docs/backend_explanation/04_problem_discovery.md` and
+> `docs/frontend_explanation/04_problem_discovery.md`. Normalized `tags` +
+> `problem_tags` join tables; `GET /problems?search=&difficulty=&tag=&page=&limit=`
+> returns `{problems, total, page, limit}` (each problem carries its tags, fetched
+> in one batched query); new `GET /problems/tags` (declared before `/{slug}`).
+> Frontend filter bar (debounced search + difficulty/tag dropdowns), pagination,
+> tag chips, and the Phase 3 Solved markers. Seed back-fills tags on re-run.
+
+- **Filters:** by difficulty and by tag (normalized `problem_tags` table).
 - **Search:** by title (`WHERE title LIKE ?`).
-- **Pagination:** `GET /problems?page=1&limit=20` — return items + total count.
+- **Pagination:** `GET /problems?page=1&limit=20` — returns items + total count.
 - Frontend: filter dropdowns, a search box, a "Solved ✓" indicator per row.
 
 **Interview value:** pagination and query parameters are a classic interview topic.

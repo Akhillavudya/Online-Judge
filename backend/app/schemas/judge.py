@@ -32,3 +32,15 @@ class JudgeResultOut(JudgeSubmissionOut):
     """The full result returned right after judging — adds a human-readable detail."""
 
     detail: str
+
+
+class UserSubmissionOut(JudgeSubmissionOut):
+    """One judged attempt as shown on the user-wide "My Submissions" page.
+
+    Adds the problem's title and slug so the row can be labelled and linked back
+    to the problem (a per-problem :class:`JudgeSubmissionOut` doesn't need these,
+    since the problem is already known from the URL).
+    """
+
+    problem_title: str
+    problem_slug: str

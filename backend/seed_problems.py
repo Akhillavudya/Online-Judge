@@ -11,7 +11,7 @@ and will be used by the judge in Phase 2.
 """
 
 from app.db.database import init_database
-from app.db.repositories import problems, test_cases
+from app.db.repositories import problems, tags, test_cases
 
 SEED_PROBLEMS = [
     {
@@ -24,6 +24,7 @@ SEED_PROBLEMS = [
         "output_format": "A single integer: the value of A + B.",
         "constraints": "-10^9 <= A, B <= 10^9",
         "difficulty": "easy",
+        "tags": ["math", "implementation"],
         "test_cases": [
             ("5 7", "12", True),
             ("-3 3", "0", True),
@@ -41,6 +42,7 @@ SEED_PROBLEMS = [
         "output_format": "A single integer: the sum of the N integers.",
         "constraints": "1 <= N <= 10^5",
         "difficulty": "easy",
+        "tags": ["array", "math"],
         "test_cases": [
             ("3\n1 2 3", "6", True),
             ("5\n10 20 30 40 50", "150", True),
@@ -58,6 +60,7 @@ SEED_PROBLEMS = [
         "output_format": "A single integer: the maximum of the three.",
         "constraints": "-10^9 <= each integer <= 10^9",
         "difficulty": "easy",
+        "tags": ["implementation"],
         "test_cases": [
             ("3 9 5", "9", True),
             ("-1 -7 -3", "-1", True),
@@ -83,7 +86,11 @@ def seed() -> None:
     for data in SEED_PROBLEMS:
         slug = _slugify(data["title"])
         if problems.slug_exists(slug):
-            print(f"  skip   {slug} (already exists)")
+            # Already created on a previous run — just make sure its tags are set,
+            # so re-running this script back-fills tags onto older problems.
+            existing = problems.get_problem_by_slug(slug)
+            tags.set_problem_tags(existing["id"], data.get("tags", []))
+            print(f"  skip   {slug} (already exists; tags refreshed)")
             skipped += 1
             continue
 
@@ -106,7 +113,8 @@ def seed() -> None:
                 expected_output=expected_output,
                 is_sample=is_sample,
             )
-        print(f"  create {slug} ({len(data['test_cases'])} test cases)")
+        tags.set_problem_tags(problem["id"], data.get("tags", []))
+        print(f"  create {slug} ({len(data['test_cases'])} test cases, {len(data.get('tags', []))} tags)")
         created += 1
 
     print(f"\nDone. {created} created, {skipped} skipped.")

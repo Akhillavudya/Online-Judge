@@ -23,6 +23,7 @@ function CompilerNavbar({ language, onLanguageChange, onRun, onSave, isBusy }) {
           </Link>
           <nav className="hidden items-center gap-4 text-sm font-semibold text-slate-400 sm:flex">
             <Link to="/problems" className="hover:text-slate-100">Problems</Link>
+            <Link to="/submissions" className="hover:text-slate-100">My Submissions</Link>
             <Link to="/compiler" className="hover:text-slate-100">Compiler</Link>
           </nav>
         </div>

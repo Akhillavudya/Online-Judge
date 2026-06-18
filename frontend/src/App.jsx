@@ -6,6 +6,7 @@ import RegisterPage from './pages/RegisterPage';
 import CompilerPage from './pages/CompilerPage';
 import ProblemsPage from './pages/ProblemsPage';
 import ProblemDetailPage from './pages/ProblemDetailPage';
+import MySubmissionsPage from './pages/MySubmissionsPage';
 
 function App() {
   return (
@@ -42,6 +43,14 @@ function App() {
         element={(
           <ProtectedRoute>
             <ProblemDetailPage />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/submissions"
+        element={(
+          <ProtectedRoute>
+            <MySubmissionsPage />
           </ProtectedRoute>
         )}
       />

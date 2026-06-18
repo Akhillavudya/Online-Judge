@@ -12,14 +12,16 @@ import re
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.db.repositories import judge_submissions, problems, test_cases
+from app.db.repositories import judge_submissions, problems, tags, test_cases
 from app.dependencies import get_current_user
 from app.schemas.judge import JudgeResultOut, JudgeSubmissionOut, SubmitRequest
 from app.schemas.problem import (
+    Difficulty,
     ProblemCreateRequest,
     ProblemDetailOut,
+    ProblemListOut,
     ProblemSummaryOut,
 )
 from app.services.judge import SUPPORTED_LANGUAGE, judge_submission
@@ -44,11 +46,43 @@ def _unique_slug(title: str) -> str:
     return slug
 
 
-@router.get("")
-def list_problems():
-    """Return all problems as lightweight summaries for the list page."""
-    rows = problems.list_problems()
-    return {"problems": [ProblemSummaryOut.from_row(row) for row in rows]}
+@router.get("", response_model=ProblemListOut)
+def list_problems(
+    search: Annotated[str | None, Query(max_length=200)] = None,
+    difficulty: Difficulty | None = None,
+    tag: Annotated[str | None, Query(max_length=50)] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+):
+    """Return a filtered, paginated page of problems for the list page.
+
+    Query params (all optional): ``search`` (title contains), ``difficulty``,
+    ``tag``, ``page`` (1-based), ``limit`` (per page). Returns the page of
+    problems plus the ``total`` count so the frontend can render a pager.
+    """
+    offset = (page - 1) * limit
+    rows = problems.list_problems(
+        search=search, difficulty=difficulty, tag=tag, limit=limit, offset=offset
+    )
+    total = problems.count_problems(search=search, difficulty=difficulty, tag=tag)
+
+    # Attach each problem's tags in a single follow-up query (no N+1).
+    tags_by_id = tags.get_tags_by_problem_ids([row["id"] for row in rows])
+    return {
+        "problems": [
+            ProblemSummaryOut.from_row(row, tags_by_id.get(row["id"], []))
+            for row in rows
+        ],
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
+
+
+@router.get("/tags")
+def list_tags():
+    """Return all tag names (for the discovery filter dropdown)."""
+    return {"tags": tags.list_tag_names()}
 
 
 @router.get("/{slug}")
@@ -59,7 +93,8 @@ def get_problem(slug: str):
         raise HTTPException(status_code=404, detail="Problem not found.")
 
     sample_rows = test_cases.list_sample_test_cases(problem["id"])
-    return {"problem": ProblemDetailOut.from_row(problem, sample_rows)}
+    problem_tags = tags.get_tags_for_problem(problem["id"])
+    return {"problem": ProblemDetailOut.from_row(problem, sample_rows, problem_tags)}
 
 
 @router.post("/{slug}/submit")
@@ -157,5 +192,9 @@ def create_problem(
             is_sample=case.is_sample,
         )
 
+    if request.tags:
+        tags.set_problem_tags(problem["id"], request.tags)
+
     sample_rows = test_cases.list_sample_test_cases(problem["id"])
-    return {"problem": ProblemDetailOut.from_row(problem, sample_rows)}
+    problem_tags = tags.get_tags_for_problem(problem["id"])
+    return {"problem": ProblemDetailOut.from_row(problem, sample_rows, problem_tags)}
