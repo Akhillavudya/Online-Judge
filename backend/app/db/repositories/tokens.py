@@ -23,7 +23,7 @@ def get_user_by_token(token: str) -> sqlite3.Row | None:
     with get_connection() as connection:
         return connection.execute(
             """
-            SELECT users.id, users.name, users.email, users.created_at
+            SELECT users.id, users.name, users.email, users.role, users.created_at
             FROM auth_tokens
             JOIN users ON users.id = auth_tokens.user_id
             WHERE auth_tokens.token = ?

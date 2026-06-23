@@ -7,6 +7,7 @@ import CompilerPage from './pages/CompilerPage';
 import ProblemsPage from './pages/ProblemsPage';
 import ProblemDetailPage from './pages/ProblemDetailPage';
 import MySubmissionsPage from './pages/MySubmissionsPage';
+import AdminPage from './pages/AdminPage';
 
 function App() {
   return (
@@ -51,6 +52,14 @@ function App() {
         element={(
           <ProtectedRoute>
             <MySubmissionsPage />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/admin"
+        element={(
+          <ProtectedRoute adminOnly>
+            <AdminPage />
           </ProtectedRoute>
         )}
       />

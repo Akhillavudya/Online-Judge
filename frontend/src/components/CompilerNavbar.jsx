@@ -25,6 +25,9 @@ function CompilerNavbar({ language, onLanguageChange, onRun, onSave, isBusy }) {
             <Link to="/problems" className="hover:text-slate-100">Problems</Link>
             <Link to="/submissions" className="hover:text-slate-100">My Submissions</Link>
             <Link to="/compiler" className="hover:text-slate-100">Compiler</Link>
+            {user?.role === 'admin' && (
+              <Link to="/admin" className="text-amber-300 hover:text-amber-200">Admin</Link>
+            )}
           </nav>
         </div>
 

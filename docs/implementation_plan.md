@@ -218,9 +218,21 @@ shouldn't change the judge.
 
 ---
 
-### Phase 6 — Roles & admin panel
+### Phase 6 — Roles & admin panel ✅ DONE
 
 **Goal:** Only admins can create problems and test cases.
+
+> Implemented — see `docs/backend_explanation/06_roles_admin.md` and
+> `docs/frontend_explanation/06_roles_admin.md`. `users.role` column added via a
+> startup `ALTER TABLE` migration (`_run_migrations`/`_column_exists` in
+> `database.py`); `require_admin` dependency (401→403 layering on
+> `get_current_user`). New admin-gated `routers/admin.py`: create/edit problems,
+> view a problem with all (incl. hidden) test cases, add/delete test cases. The
+> old public `POST /problems` was removed. `make_admin.py` promotes a user by
+> email (no self-promote endpoint). `get_user_by_token` now selects `role`;
+> `UserOut` exposes it. Frontend: `AdminPage` create-problem form, `/admin` route
+> behind `<ProtectedRoute adminOnly>`, and a role-gated Admin nav link. Full
+> authorization flow (403 for users, 201 for admins) verified over HTTP.
 
 - Add `role` (`user` / `admin`) to the `users` table.
 - A `require_admin` dependency (built on your existing `get_current_user`).

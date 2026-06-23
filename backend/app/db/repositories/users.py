@@ -48,3 +48,20 @@ def get_user_by_id(user_id: int) -> sqlite3.Row | None:
             "SELECT * FROM users WHERE id = ?",
             (user_id,),
         ).fetchone()
+
+
+def set_user_role(user_id: int, role: str) -> sqlite3.Row | None:
+    """Set a user's role (``'user'`` or ``'admin'``) and return the updated row.
+
+    Returns ``None`` if no user has that id. Used by the ``make_admin.py`` script;
+    there is deliberately no HTTP endpoint that lets a user promote themselves.
+    """
+    with get_connection() as connection:
+        connection.execute(
+            "UPDATE users SET role = ? WHERE id = ?",
+            (role, user_id),
+        )
+        return connection.execute(
+            "SELECT * FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()

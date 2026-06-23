@@ -22,11 +22,23 @@ def get_connection() -> sqlite3.Connection:
     return connection
 
 
+def _column_exists(connection: sqlite3.Connection, table: str, column: str) -> bool:
+    """Return ``True`` if ``table`` already has a column named ``column``.
+
+    Used by the lightweight migrations below. ``PRAGMA table_info`` lists one row
+    per column; row[1] is the column name.
+    """
+    rows = connection.execute(f"PRAGMA table_info({table})").fetchall()
+    return any(row[1] == column for row in rows)
+
+
 def init_database() -> None:
-    """Create the tables if they do not exist yet.
+    """Create the tables if they do not exist yet, then run small migrations.
 
     Safe to run on every startup: ``CREATE TABLE IF NOT EXISTS`` is a no-op when
     the tables are already present, so existing data in ``compiler.db`` is kept.
+    Migrations that add columns to *existing* tables (e.g. ``users.role``) are
+    applied separately with ``ALTER TABLE`` — see :func:`_run_migrations`.
     """
     with get_connection() as connection:
         connection.execute(
@@ -36,6 +48,7 @@ def init_database() -> None:
                 name TEXT NOT NULL,
                 email TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'user',
                 created_at TEXT NOT NULL
             )
             """
@@ -132,4 +145,21 @@ def init_database() -> None:
                 FOREIGN KEY (problem_id) REFERENCES problems (id) ON DELETE CASCADE
             )
             """
+        )
+
+        _run_migrations(connection)
+
+
+def _run_migrations(connection: sqlite3.Connection) -> None:
+    """Apply schema changes to tables that already exist in older databases.
+
+    ``CREATE TABLE IF NOT EXISTS`` only helps for brand-new tables; it never adds
+    a column to a table that is already there. So when we introduce a new column
+    on an existing table we add it here with ``ALTER TABLE``, guarded by a column
+    check so it runs at most once. Each migration is small and idempotent.
+    """
+    # Phase 6: user roles. Existing accounts default to the regular 'user' role.
+    if not _column_exists(connection, "users", "role"):
+        connection.execute(
+            "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'"
         )

@@ -8,7 +8,7 @@ turn an ``Authorization: Bearer <token>`` header into the matching user row.
 import sqlite3
 from typing import Annotated
 
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 
 from app.db.repositories import tokens
 
@@ -35,3 +35,22 @@ def get_current_user(
             detail="Invalid authentication token.",
         )
     return user
+
+
+def require_admin(
+    current_user: Annotated[sqlite3.Row, Depends(get_current_user)],
+) -> sqlite3.Row:
+    """Allow only admins through; otherwise raise 403.
+
+    Layered on top of :func:`get_current_user`, so it first requires a valid
+    login (401 if missing) and *then* checks the role (403 if not an admin). This
+    is the difference between **authentication** (who you are) and
+    **authorization** (what you're allowed to do): admin-only endpoints depend on
+    this instead of ``get_current_user``.
+    """
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required.",
+        )
+    return current_user

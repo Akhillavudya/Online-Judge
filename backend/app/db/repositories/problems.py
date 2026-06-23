@@ -127,6 +127,47 @@ def count_problems(
     return row["n"]
 
 
+def update_problem(
+    problem_id: int,
+    title: str,
+    statement: str,
+    input_format: str | None,
+    output_format: str | None,
+    constraints: str | None,
+    difficulty: str,
+    time_limit_ms: int,
+    memory_limit_mb: int,
+) -> sqlite3.Row:
+    """Update an existing problem's fields (not its slug) and return the new row.
+
+    The slug is intentionally left unchanged so existing links keep working.
+    """
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE problems
+            SET title = ?, statement = ?, input_format = ?, output_format = ?,
+                constraints = ?, difficulty = ?, time_limit_ms = ?, memory_limit_mb = ?
+            WHERE id = ?
+            """,
+            (
+                title,
+                statement,
+                input_format,
+                output_format,
+                constraints,
+                difficulty,
+                time_limit_ms,
+                memory_limit_mb,
+                problem_id,
+            ),
+        )
+        return connection.execute(
+            "SELECT * FROM problems WHERE id = ?",
+            (problem_id,),
+        ).fetchone()
+
+
 def get_problem_by_slug(slug: str) -> sqlite3.Row | None:
     """Return one full problem by its slug, or ``None`` if it does not exist."""
     with get_connection() as connection:

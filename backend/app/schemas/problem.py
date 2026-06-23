@@ -36,6 +36,28 @@ class ProblemCreateRequest(BaseModel):
     test_cases: list[TestCaseIn] = Field(default_factory=list)
 
 
+class ProblemUpdateRequest(BaseModel):
+    """Body for ``PUT /admin/problems/{slug}`` (edit a problem's fields).
+
+    The slug is not editable so existing links keep working. Test cases are
+    managed through their own admin endpoints, not here.
+    """
+
+    title: str = Field(min_length=2, max_length=200)
+    statement: str = Field(min_length=1)
+    input_format: str | None = None
+    output_format: str | None = None
+    constraints: str | None = None
+    difficulty: Difficulty = "easy"
+    time_limit_ms: int = Field(default=2000, ge=100, le=15000)
+    memory_limit_mb: int = Field(default=256, ge=16, le=1024)
+    tags: list[str] = Field(default_factory=list)
+
+
+class TestCaseCreateRequest(TestCaseIn):
+    """Body for ``POST /admin/problems/{slug}/test-cases`` (add one test case)."""
+
+
 class TestCaseSampleOut(BaseModel):
     """A sample test case shown to the user on the problem page."""
 
@@ -45,6 +67,19 @@ class TestCaseSampleOut(BaseModel):
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> "TestCaseSampleOut":
+        return cls.model_validate(dict(row))
+
+
+class TestCaseFullOut(BaseModel):
+    """A full test case (incl. hidden ones) — only ever returned to admins."""
+
+    id: int
+    input: str
+    expected_output: str
+    is_sample: bool
+
+    @classmethod
+    def from_row(cls, row: sqlite3.Row) -> "TestCaseFullOut":
         return cls.model_validate(dict(row))
 
 
@@ -102,4 +137,34 @@ class ProblemDetailOut(BaseModel):
         data = dict(row)
         data["tags"] = tags or []
         data["sample_test_cases"] = [TestCaseSampleOut.from_row(r) for r in sample_rows]
+        return cls.model_validate(data)
+
+
+class AdminProblemDetailOut(BaseModel):
+    """Admin view of a problem: full statement plus *all* test cases (incl. hidden)."""
+
+    id: int
+    title: str
+    slug: str
+    statement: str
+    input_format: str | None
+    output_format: str | None
+    constraints: str | None
+    difficulty: str
+    time_limit_ms: int
+    memory_limit_mb: int
+    created_at: str
+    tags: list[str] = []
+    test_cases: list[TestCaseFullOut]
+
+    @classmethod
+    def from_row(
+        cls,
+        row: sqlite3.Row,
+        case_rows: list[sqlite3.Row],
+        tags: list[str] | None = None,
+    ) -> "AdminProblemDetailOut":
+        data = dict(row)
+        data["tags"] = tags or []
+        data["test_cases"] = [TestCaseFullOut.from_row(r) for r in case_rows]
         return cls.model_validate(data)

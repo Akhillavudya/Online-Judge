@@ -45,6 +45,7 @@ def list_all_test_cases(problem_id: int) -> list[sqlite3.Row]:
     """Return every test case (sample + hidden) for a problem.
 
     Used by the judge in Phase 2 — never exposed directly through a public route.
+    The admin endpoints (Phase 6) also use it so an admin can review hidden cases.
     """
     with get_connection() as connection:
         return connection.execute(
@@ -56,3 +57,22 @@ def list_all_test_cases(problem_id: int) -> list[sqlite3.Row]:
             """,
             (problem_id,),
         ).fetchall()
+
+
+def get_test_case(test_case_id: int) -> sqlite3.Row | None:
+    """Return one test case by id, or ``None`` if it does not exist."""
+    with get_connection() as connection:
+        return connection.execute(
+            "SELECT * FROM test_cases WHERE id = ?",
+            (test_case_id,),
+        ).fetchone()
+
+
+def delete_test_case(test_case_id: int) -> int:
+    """Delete one test case by id and return how many rows were removed (0 or 1)."""
+    with get_connection() as connection:
+        cursor = connection.execute(
+            "DELETE FROM test_cases WHERE id = ?",
+            (test_case_id,),
+        )
+        return cursor.rowcount
