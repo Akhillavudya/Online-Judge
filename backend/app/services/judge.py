@@ -19,9 +19,7 @@ from pathlib import Path
 
 from app.services.executor import CompilationError, compile_source, run_executable
 from app.services.file_manager import generate_file
-
-# The only language the executor supports today. The router rejects others.
-SUPPORTED_LANGUAGE = "cpp"
+from app.services.languages import get_language
 
 
 def _normalize(text: str) -> str:
@@ -50,14 +48,16 @@ def judge_submission(
          "runtime_ms": int, "detail": str}
     """
     total = len(test_cases)
+    spec = get_language(language)
 
-    # 1) Write the code to disk and compile it ONCE.
-    source_path = generate_file(language, code)
+    # 1) Write the code to disk (with the right extension) and compile it ONCE.
+    #    For interpreted languages compile_source is a no-op that returns the source.
+    source_path = generate_file(spec.extension, code)
     try:
-        executable_path = compile_source(Path(source_path))
+        executable_path = compile_source(language, Path(source_path))
     except CompilationError as error:
         # Hide the server's internal file path from the user-facing compiler error.
-        clean_detail = str(error).replace(source_path, "solution.cpp").strip()
+        clean_detail = str(error).replace(source_path, f"solution.{spec.extension}").strip()
         return {
             "verdict": "CE",
             "passed_count": 0,
@@ -72,7 +72,7 @@ def judge_submission(
     max_runtime_ms = 0
 
     for index, case in enumerate(test_cases, start=1):
-        result = run_executable(executable_path, case["input"], timeout_seconds)
+        result = run_executable(language, executable_path, case["input"], timeout_seconds)
         max_runtime_ms = max(max_runtime_ms, result["runtime_ms"])
 
         if result["timed_out"]:

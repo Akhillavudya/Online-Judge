@@ -40,6 +40,10 @@ int main() {
 
 const monacoLanguage = { cpp: 'cpp', python: 'python', java: 'java', javascript: 'javascript' };
 
+// Languages the backend can actually run & judge today (Phase 5). Others can be
+// typed in the editor but Run/Submit will return an "unsupported language" error.
+const runnableLanguages = new Set(['cpp', 'python']);
+
 const difficultyStyles = {
   easy: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
   medium: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
@@ -95,7 +99,9 @@ function ProblemDetailPage() {
   function handleLanguageChange(nextLanguage) {
     setLanguage(nextLanguage);
     setCode(starterCode[nextLanguage]);
-    setOutput(nextLanguage === 'cpp' ? 'Run your code to see the output.' : 'Only C++ execution is supported by the backend right now.');
+    setOutput(runnableLanguages.has(nextLanguage)
+      ? 'Run your code to see the output.'
+      : 'Only C++ and Python can be run right now.');
     setStatus('Ready');
   }
 

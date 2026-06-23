@@ -1,14 +1,13 @@
-"""The code-execution endpoint: compile and run submitted C++ code."""
+"""The code-execution endpoint: compile and run submitted code (C++ or Python)."""
 
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.run import RunRequest
-from app.services.executor import execute_cpp
+from app.services.executor import execute_code
 from app.services.file_manager import generate_file
+from app.services.languages import SUPPORTED_LANGUAGES, get_language
 
 router = APIRouter(tags=["run"])
-
-SUPPORTED_LANGUAGE = "cpp"
 
 
 @router.post("/run")
@@ -18,13 +17,15 @@ async def run_code(request: RunRequest):
     if not request.code.strip():
         raise HTTPException(status_code=400, detail="Empty code!")
 
-    # Only the C++ executor exists today.
-    if request.language != SUPPORTED_LANGUAGE:
-        raise HTTPException(status_code=400, detail="Only C++ is supported right now.")
+    if request.language not in SUPPORTED_LANGUAGES:
+        supported = ", ".join(sorted(SUPPORTED_LANGUAGES))
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported language. Supported: {supported}."
+        )
 
     try:
-        file_path = generate_file(request.language, request.code)
-        output = execute_cpp(file_path, request.input)
+        file_path = generate_file(get_language(request.language).extension, request.code)
+        output = execute_code(request.language, file_path, request.input)
         return {"filePath": file_path, "output": output}
     except RuntimeError as error:
         # Compiler/runtime failures (incl. the executor's stderr) become a 500.

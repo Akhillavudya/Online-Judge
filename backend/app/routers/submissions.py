@@ -12,11 +12,18 @@ from app.schemas.submission import (
     SubmissionOut,
     SubmissionUpdateRequest,
 )
+from app.services.languages import SUPPORTED_LANGUAGES
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
 
-# Only C++ is supported by the executor today; reject anything else early.
-SUPPORTED_LANGUAGE = "cpp"
+
+def _reject_unsupported(language: str) -> None:
+    """Raise a 400 if ``language`` is not one the judge/executor supports."""
+    if language not in SUPPORTED_LANGUAGES:
+        supported = ", ".join(sorted(SUPPORTED_LANGUAGES))
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported language. Supported: {supported}."
+        )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -25,8 +32,7 @@ def create_submission(
     current_user: Annotated[sqlite3.Row, Depends(get_current_user)],
 ):
     """Save a new submission for the current user."""
-    if request.language != SUPPORTED_LANGUAGE:
-        raise HTTPException(status_code=400, detail="Only C++ is supported right now.")
+    _reject_unsupported(request.language)
 
     submission = submissions.create_submission(
         user_id=current_user["id"],
@@ -66,8 +72,8 @@ def update_submission(
     """Apply a partial update to a submission and return the updated record."""
     # Keep only the fields the client actually sent.
     updates = request.model_dump(exclude_unset=True)
-    if "language" in updates and updates["language"] != SUPPORTED_LANGUAGE:
-        raise HTTPException(status_code=400, detail="Only C++ is supported right now.")
+    if "language" in updates:
+        _reject_unsupported(updates["language"])
     if not updates:
         raise HTTPException(status_code=400, detail="No fields provided for update.")
 

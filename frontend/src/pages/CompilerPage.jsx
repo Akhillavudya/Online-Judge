@@ -41,6 +41,9 @@ const fileExtension = {
   javascript: 'js',
 };
 
+// Languages the backend can actually run today (Phase 5: C++ + Python).
+const runnableLanguages = new Set(['cpp', 'python']);
+
 function fallbackReview(language) {
   return {
     quality: `The ${language.toUpperCase()} code is readable. Keep variable names clear and validate input before using it.`,
@@ -78,7 +81,9 @@ function CompilerPage() {
     setCode(starterCode[nextLanguage]);
     setFileName(`main.${fileExtension[nextLanguage]}`);
     setActiveSubmissionId(null);
-    setOutput(nextLanguage === 'cpp' ? 'Run your code to see output.' : 'Only C++ execution is currently supported by the backend.');
+    setOutput(runnableLanguages.has(nextLanguage)
+      ? 'Run your code to see output.'
+      : 'Only C++ and Python can be run right now.');
     setStatus('Ready');
     setReview(fallbackReview(nextLanguage));
   }

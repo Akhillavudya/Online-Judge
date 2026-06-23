@@ -191,9 +191,20 @@ early-exit, verdict logic = real problem-solving.
 
 ---
 
-### Phase 5 — Multi-language support
+### Phase 5 — Multi-language support ✅ DONE
 
 **Goal:** Let users solve in more than C++.
+
+> Implemented — see `docs/backend_explanation/05_multi_language.md` and
+> `docs/frontend_explanation/05_multi_language.md`. New `services/languages.py`
+> registry (`LanguageSpec` + `LANGUAGES` dict → `{extension, compile_cmd,
+> run_cmd}`, plus `SUPPORTED_LANGUAGES`); `executor.py` refactored to be
+> language-agnostic (`compile_source`/`run_executable`/`execute_code` all take a
+> `language`); the judge loop is unchanged. **C++ + Python** supported; all five
+> verdicts (AC/WA/TLE/RE/CE) verified for both. Routers (`run`, `submit`,
+> `submissions`, `ai`) validate against `SUPPORTED_LANGUAGES`. Frontend shows the
+> correct runnable-language messaging. Adding the next language = one entry in
+> `LANGUAGES`.
 
 - Start with **Python** (easiest — no compile step, just `python file.py`), then
   optionally **Java** / **C**.

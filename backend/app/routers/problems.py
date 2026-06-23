@@ -24,7 +24,8 @@ from app.schemas.problem import (
     ProblemListOut,
     ProblemSummaryOut,
 )
-from app.services.judge import SUPPORTED_LANGUAGE, judge_submission
+from app.services.judge import judge_submission
+from app.services.languages import SUPPORTED_LANGUAGES
 
 router = APIRouter(prefix="/problems", tags=["problems"])
 
@@ -108,8 +109,11 @@ def submit_solution(
     if not problem:
         raise HTTPException(status_code=404, detail="Problem not found.")
 
-    if request.language != SUPPORTED_LANGUAGE:
-        raise HTTPException(status_code=400, detail="Only C++ is supported right now.")
+    if request.language not in SUPPORTED_LANGUAGES:
+        supported = ", ".join(sorted(SUPPORTED_LANGUAGES))
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported language. Supported: {supported}."
+        )
 
     cases = test_cases.list_all_test_cases(problem["id"])
     if not cases:

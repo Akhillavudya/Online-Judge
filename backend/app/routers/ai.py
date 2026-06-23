@@ -9,10 +9,9 @@ from app.dependencies import get_current_user
 from app.schemas.ai import AIReviewRequest
 from app.schemas.auth import UserOut
 from app.services.ai_review import AIReviewError, review_code
+from app.services.languages import SUPPORTED_LANGUAGES
 
 router = APIRouter(prefix="/ai", tags=["ai"])
-
-SUPPORTED_LANGUAGE = "cpp"
 
 
 @router.post("/review")
@@ -20,9 +19,12 @@ def ai_review(
     request: AIReviewRequest,
     current_user: Annotated[sqlite3.Row, Depends(get_current_user)],
 ):
-    """Return an AI-generated review of the submitted C++ code."""
-    if request.language != SUPPORTED_LANGUAGE:
-        raise HTTPException(status_code=400, detail="Only C++ is supported right now.")
+    """Return an AI-generated review of the submitted code."""
+    if request.language not in SUPPORTED_LANGUAGES:
+        supported = ", ".join(sorted(SUPPORTED_LANGUAGES))
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported language. Supported: {supported}."
+        )
 
     try:
         result = review_code(
