@@ -19,11 +19,12 @@ function CompilerNavbar({ language, onLanguageChange, onRun, onSave, isBusy }) {
             <span className="grid h-9 w-9 place-items-center rounded-md bg-blue-600">
               <Code2 size={22} />
             </span>
-            AlgoU
+            Verdex
           </Link>
           <nav className="hidden items-center gap-4 text-sm font-semibold text-slate-400 sm:flex">
             <Link to="/problems" className="hover:text-slate-100">Problems</Link>
             <Link to="/submissions" className="hover:text-slate-100">My Submissions</Link>
+            <Link to="/leaderboard" className="hover:text-slate-100">Leaderboard</Link>
             <Link to="/compiler" className="hover:text-slate-100">Compiler</Link>
             {user?.role === 'admin' && (
               <Link to="/admin" className="text-amber-300 hover:text-amber-200">Admin</Link>
@@ -70,6 +71,11 @@ function CompilerNavbar({ language, onLanguageChange, onRun, onSave, isBusy }) {
               <p className="font-semibold text-white">{user?.name}</p>
               <p className="truncate text-slate-400">{user?.email}</p>
             </div>
+            {user?.id && (
+              <Link className="block rounded px-3 py-2 text-sm text-slate-300 hover:bg-slate-800" to={`/users/${user.id}`}>
+                My Profile
+              </Link>
+            )}
             <Link className="block rounded px-3 py-2 text-sm text-slate-300 hover:bg-slate-800" to="/dashboard">
               Dashboard
             </Link>

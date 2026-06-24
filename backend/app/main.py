@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db.database import init_database
-from app.routers import admin, ai, auth, health, me, problems, run, submissions
+from app.routers import admin, ai, auth, health, me, problems, run, stats, submissions
 
 
 @asynccontextmanager
@@ -26,7 +26,7 @@ async def lifespan(_app: FastAPI):
 
 def create_app() -> FastAPI:
     """Build and return the configured FastAPI application."""
-    app = FastAPI(title="Online Compiler", lifespan=lifespan)
+    app = FastAPI(title="Verdex", lifespan=lifespan)
 
     # Allow the React frontend to call this API from the browser.
     app.add_middleware(
@@ -44,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(problems.router)
     app.include_router(admin.router)
     app.include_router(me.router)
+    app.include_router(stats.router)
     app.include_router(submissions.router)
     app.include_router(run.router)
     app.include_router(ai.router)

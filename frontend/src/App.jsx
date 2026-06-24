@@ -7,6 +7,8 @@ import CompilerPage from './pages/CompilerPage';
 import ProblemsPage from './pages/ProblemsPage';
 import ProblemDetailPage from './pages/ProblemDetailPage';
 import MySubmissionsPage from './pages/MySubmissionsPage';
+import LeaderboardPage from './pages/LeaderboardPage';
+import ProfilePage from './pages/ProfilePage';
 import AdminPage from './pages/AdminPage';
 
 function App() {
@@ -52,6 +54,22 @@ function App() {
         element={(
           <ProtectedRoute>
             <MySubmissionsPage />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/leaderboard"
+        element={(
+          <ProtectedRoute>
+            <LeaderboardPage />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/users/:userId"
+        element={(
+          <ProtectedRoute>
+            <ProfilePage />
           </ProtectedRoute>
         )}
       />

@@ -244,9 +244,24 @@ shouldn't change the judge.
 
 ---
 
-### Phase 7 — Profiles & leaderboard
+### Phase 7 — Profiles & leaderboard ✅ DONE
 
 **Goal:** Engagement + showing aggregation queries.
+
+> Implemented — see `docs/backend_explanation/07_profiles_leaderboard.md` and
+> `docs/frontend_explanation/07_profiles_leaderboard.md`. New
+> `db/repositories/stats.py` holds all the `GROUP BY`/`COUNT` aggregation
+> (leaderboard ranking + per-user profile numbers); `schemas/stats.py`
+> (`LeaderboardEntryOut`, `ProfileOut`, `SolvedByDifficulty`) and `routers/stats.py`
+> expose `GET /leaderboard` and `GET /users/{id}/profile`. Solved counts use
+> `COUNT(DISTINCT … problem_id WHERE verdict='AC')`; the leaderboard `LEFT
+> JOIN`s users, filters `HAVING solved_count > 0`, orders by solved desc then
+> fewest submissions, and the router assigns 1-based ranks. No new table/migration.
+> Frontend: `LeaderboardPage` (`/leaderboard`, highlights you, medals top 3) and
+> `ProfilePage` (`/users/:userId`, stat cards + difficulty breakdown + recent
+> activity), plus navbar links. Verified end-to-end over HTTP (register → admin →
+> create easy problem → AC submit → profile shows 1 solved / easy=1, leaderboard
+> ranks the user).
 
 - **Profile page:** total solved, solved-by-difficulty, recent submissions.
 - **Leaderboard:** rank users by number of problems solved
