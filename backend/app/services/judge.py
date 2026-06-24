@@ -39,10 +39,13 @@ def judge_submission(
     code: str,
     test_cases: list,
     time_limit_ms: int,
+    memory_limit_mb: int | None = None,
 ) -> dict:
     """Compile + run ``code`` against ``test_cases`` and return a verdict report.
 
     ``test_cases`` is a list of rows/dicts with ``input`` and ``expected_output``.
+    ``memory_limit_mb`` is the problem's RAM ceiling, enforced when the Docker
+    sandbox is enabled (Phase 8); ignored on the host execution path.
     Returns:
         {"verdict": str, "passed_count": int, "total_count": int,
          "runtime_ms": int, "detail": str}
@@ -72,7 +75,9 @@ def judge_submission(
     max_runtime_ms = 0
 
     for index, case in enumerate(test_cases, start=1):
-        result = run_executable(language, executable_path, case["input"], timeout_seconds)
+        result = run_executable(
+            language, executable_path, case["input"], timeout_seconds, memory_limit_mb
+        )
         max_runtime_ms = max(max_runtime_ms, result["runtime_ms"])
 
         if result["timed_out"]:

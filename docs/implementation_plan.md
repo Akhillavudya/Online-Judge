@@ -273,7 +273,20 @@ logic.
 
 ---
 
-### Phase 8 — Secure sandboxed execution (⭐ big talking point)
+### Phase 8 — Secure sandboxed execution (⭐ big talking point) ✅ DONE
+
+> Implemented — see `docs/backend_explanation/09_sandboxed_execution.md`. New
+> `backend/sandbox/Dockerfile` (debian-slim + g++ + python3) and
+> `services/sandbox.py` provide Docker-backed twins of the executor primitives:
+> `compile_in_sandbox` / `run_in_sandbox` run each compile and test-case run in a
+> throwaway `docker run --rm` container with `--network none`, `--memory` +
+> `--memory-swap`, `--cpus`, `--pids-limit`, `--read-only` + a small `/tmp`
+> tmpfs, `--user nobody`, a read-only code mount, and an inner coreutils
+> `timeout` (exit 124 → TLE). `executor.py` delegates to the sandbox when
+> `USE_DOCKER_SANDBOX` is set (off by default, so local dev needs no Docker); the
+> judge loop is unchanged. The problem's `memory_limit_mb` is now threaded through
+> the judge into the container's RAM cap. Compiling *inside* the container means
+> the binary is a Linux ELF, so it works from any host with Docker.
 
 **Goal:** Run untrusted user code safely. **Right now your judge runs code
 directly on the host — that's the one real risk to call out.**

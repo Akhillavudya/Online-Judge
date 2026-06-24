@@ -1,6 +1,7 @@
 node_modules
 codes
 outputs
+sandbox_work
 .env
 
 # Logs

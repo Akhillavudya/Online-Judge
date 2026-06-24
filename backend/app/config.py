@@ -15,6 +15,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    """Read a boolean environment variable ("1"/"true"/"yes" are truthy)."""
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 # The backend root directory (the folder that contains this ``app`` package).
 # Two ``.parent`` hops: config.py -> app/ -> backend/.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -50,6 +58,25 @@ class Settings:
     # --- AI code review (Google Gemini) ----------------------------------
     GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+
+    # --- Secure sandboxed execution (Phase 8) ----------------------------
+    # When enabled, user code is compiled and run inside a locked-down Docker
+    # container (no network, CPU/memory/PID limits, non-root, read-only fs)
+    # instead of directly on the host. Default OFF so local development works
+    # without Docker; turn it ON (`USE_DOCKER_SANDBOX=1`) on the deployment host
+    # where Docker is installed and the sandbox image has been built.
+    USE_DOCKER_SANDBOX: bool = _env_bool("USE_DOCKER_SANDBOX", False)
+    # Name/tag of the prebuilt sandbox image (see backend/sandbox/Dockerfile).
+    SANDBOX_IMAGE: str = os.getenv("SANDBOX_IMAGE", "online-judge-sandbox")
+    # Memory ceiling (MB) for a *running* submission when the problem does not
+    # specify its own limit, and the CPU share each container may use.
+    SANDBOX_MEMORY_MB: int = int(os.getenv("SANDBOX_MEMORY_MB", "256"))
+    SANDBOX_CPUS: str = os.getenv("SANDBOX_CPUS", "1.0")
+    # More generous ceilings for the one-off compile step (g++ is hungry).
+    SANDBOX_COMPILE_MEMORY_MB: int = int(os.getenv("SANDBOX_COMPILE_MEMORY_MB", "512"))
+    SANDBOX_COMPILE_TIMEOUT_S: int = int(os.getenv("SANDBOX_COMPILE_TIMEOUT_S", "20"))
+    # Working area for per-submission sandbox folders (bind-mounted into Docker).
+    SANDBOX_DIR: Path = BASE_DIR / "sandbox_work"
 
 
 # Importable singleton used throughout the codebase: ``from app.config import settings``.

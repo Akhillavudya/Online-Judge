@@ -126,6 +126,7 @@ def submit_solution(
         code=request.code,
         test_cases=cases,
         time_limit_ms=problem["time_limit_ms"],
+        memory_limit_mb=problem["memory_limit_mb"],
     )
 
     saved = judge_submissions.create_judge_submission(

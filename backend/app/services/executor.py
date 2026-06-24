@@ -44,6 +44,14 @@ def compile_source(language: str, source_path: Path) -> Path:
     Raises:
         CompilationError: if a compiled language fails to compile.
     """
+    # Phase 8: when the Docker sandbox is enabled, compile inside a container
+    # instead of on the host. Imported lazily to avoid a circular import
+    # (sandbox imports CompilationError from this module).
+    if settings.USE_DOCKER_SANDBOX:
+        from app.services import sandbox
+
+        return sandbox.compile_in_sandbox(language, source_path)
+
     spec = get_language(language)
 
     # Interpreted languages have no compile step — run the source directly.
@@ -58,7 +66,11 @@ def compile_source(language: str, source_path: Path) -> Path:
 
 
 def run_executable(
-    language: str, executable_path: Path, stdin: str, timeout_seconds: float
+    language: str,
+    executable_path: Path,
+    stdin: str,
+    timeout_seconds: float,
+    memory_mb: int | None = None,
 ) -> dict:
     """Run a prepared program once and report what happened.
 
@@ -67,7 +79,22 @@ def run_executable(
     program errors; instead returns a dict describing the run:
         {"timed_out": bool, "returncode": int|None, "stdout": str,
          "stderr": str, "runtime_ms": int}
+
+    ``memory_mb`` is the per-run RAM ceiling enforced by the Docker sandbox
+    (Phase 8). It is ignored on the host path, which has no portable memory cap.
     """
+    # Phase 8: delegate to the locked-down container when the sandbox is on.
+    if settings.USE_DOCKER_SANDBOX:
+        from app.services import sandbox
+
+        return sandbox.run_in_sandbox(
+            language,
+            executable_path,
+            stdin,
+            timeout_seconds,
+            memory_mb or settings.SANDBOX_MEMORY_MB,
+        )
+
     argv = get_language(language).run_cmd(executable_path)
 
     start = time.perf_counter()
