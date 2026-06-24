@@ -11,7 +11,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('algou_token');
+  const token = localStorage.getItem('verdex_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

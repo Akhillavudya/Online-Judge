@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem('algou_token') || '');
+  const [token, setToken] = useState(() => localStorage.getItem('verdex_token') || '');
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(Boolean(token));
 
@@ -19,7 +19,7 @@ export function AuthProvider({ children }) {
         const { data } = await api.get('/auth/me');
         setUser(data.user);
       } catch {
-        localStorage.removeItem('algou_token');
+        localStorage.removeItem('verdex_token');
         setToken('');
         setUser(null);
       } finally {
@@ -32,7 +32,7 @@ export function AuthProvider({ children }) {
 
   async function login(payload) {
     const { data } = await api.post('/auth/login', payload);
-    localStorage.setItem('algou_token', data.token);
+    localStorage.setItem('verdex_token', data.token);
     setToken(data.token);
     setUser(data.user);
     return data.user;
@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
 
   async function register(payload) {
     const { data } = await api.post('/auth/register', payload);
-    localStorage.setItem('algou_token', data.token);
+    localStorage.setItem('verdex_token', data.token);
     setToken(data.token);
     setUser(data.user);
     return data.user;
@@ -48,7 +48,7 @@ export function AuthProvider({ children }) {
 
   async function logout() {
     await api.post('/auth/logout').catch(() => {});
-    localStorage.removeItem('algou_token');
+    localStorage.removeItem('verdex_token');
     setToken('');
     setUser(null);
   }

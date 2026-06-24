@@ -1,4 +1,4 @@
-# AlgoU Online Compiler
+# Verdex — Online Judge
 
 An end-to-end web application that lets you write, compile, and execute code directly in the browser.
 
@@ -21,8 +21,8 @@ The project is split into two independently runnable parts:
 These commands assume you have **Node.js 18+**, **npm**, **Python 3.10+**, and `g++` installed.
 
 ```bash
-git clone https://github.com/your-username/AlgoU-Online-Compiler.git
-cd AlgoU-Online-Compiler
+git clone https://github.com/your-username/Verdex.git
+cd Verdex
 ```
 
 Install the FastAPI backend dependencies:

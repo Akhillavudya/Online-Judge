@@ -54,7 +54,7 @@ function LoginPage() {
       </form>
       {message && <p className="mt-4 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{message}</p>}
       <p className="mt-6 text-sm text-slate-400">
-        New to AlgoU? <Link className="font-semibold text-blue-400 hover:text-blue-300" to="/register">Create an account</Link>
+        New to Verdex? <Link className="font-semibold text-blue-400 hover:text-blue-300" to="/register">Create an account</Link>
       </p>
     </AuthLayout>
   );

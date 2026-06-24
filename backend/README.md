@@ -1,4 +1,4 @@
-# AlgoU FastAPI Backend
+# Verdex FastAPI Backend
 
 This backend uses FastAPI while keeping the same routes the frontend already expects:
 

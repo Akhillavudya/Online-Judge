@@ -10,7 +10,7 @@ function AuthLayout({ children, title, subtitle }) {
             <span className="grid h-11 w-11 place-items-center rounded-lg bg-blue-600 text-white">
               <Code2 size={25} />
             </span>
-            AlgoU
+            Verdex
           </Link>
           <h1 className="max-w-xl text-5xl font-bold leading-tight text-white">
             Practice, run, save, and review code in one focused workspace.
@@ -27,7 +27,7 @@ function AuthLayout({ children, title, subtitle }) {
               <span className="grid h-10 w-10 place-items-center rounded-lg bg-blue-600 text-white">
                 <Code2 size={23} />
               </span>
-              AlgoU
+              Verdex
             </Link>
           </div>
           <div className="mb-6">
