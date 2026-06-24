@@ -1,0 +1,5 @@
+# Test-only dependencies (not needed to run the server in production).
+# Install alongside the runtime deps:  pip install -r requirements.txt -r requirements-dev.txt
+pytest==8.3.4
+# httpx powers FastAPI's TestClient (Starlette uses it under the hood).
+httpx==0.28.1

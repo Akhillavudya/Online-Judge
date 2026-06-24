@@ -65,7 +65,7 @@ earlier ones exist. Suggested effort assumes part-time work.
 | 7 | Profiles & leaderboard | Shows aggregation queries; engagement |
 | 8 | Secure sandboxed execution | **Big interview talking point** |
 | 9 ✅ | Hardening (pagination, rate limit, validation) | Shows production awareness |
-| 10 | Testing + CI | Shows engineering maturity |
+| 10 ✅ | Testing + CI | Shows engineering maturity |
 | 11 | Deployment | Shows you can ship |
 | 12 | Optional wow-features (contests, etc.) | Stretch goals |
 
@@ -334,7 +334,20 @@ Small, high-signal production touches:
 
 ---
 
-### Phase 10 — Testing + CI
+### Phase 10 — Testing + CI ✅ DONE
+
+> Implemented — see `docs/backend_explanation/11_testing_and_ci.md`. New
+> `backend/requirements-dev.txt` (`pytest` + `httpx`), `backend/pytest.ini`
+> (`pythonpath=.`, `testpaths=tests`), and a `backend/tests/` suite (18 tests).
+> `conftest.py` gives every test an isolated SQLite DB in a temp folder (repoints
+> `settings.DATABASE_PATH`/`CODES_DIR`/`OUTPUTS_DIR` via `monkeypatch`, calls
+> `init_database`, disables the rate limiters) plus `register`/`admin`/
+> `make_problem` helper fixtures. `test_auth.py` (register/login/me + 409/422/401),
+> `test_problems.py` (listing + admin-only 403/401 + hidden-cases-never-leak),
+> `test_judge.py` (real submissions: correct→AC, wrong→WA, 401/400, history). Tests
+> use **Python** so CI needs only an interpreter, not g++. `.github/workflows/ci.yml`
+> runs `pytest` on Ubuntu/py3.11 for every push to `main` and every PR. All 18
+> tests pass locally.
 
 - **Backend tests** with `pytest` — auth, a problem, and a judge run (AC + WA).
   (You'll need to add `httpx` for FastAPI's `TestClient`.)
