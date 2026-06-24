@@ -1,7 +1,8 @@
 import Editor from '@monaco-editor/react';
-import { Bot, Cpu, FileText, Lightbulb, Terminal, TextCursorInput } from 'lucide-react';
+import { Bot, FileText, Terminal, TextCursorInput } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import CompilerNavbar from '../components/CompilerNavbar';
+import Markdown from '../components/Markdown';
 import Panel from '../components/Panel';
 import Sidebar from '../components/Sidebar';
 import { api } from '../lib/api';
@@ -44,15 +45,6 @@ const fileExtension = {
 // Languages the backend can actually run today (Phase 5: C++ + Python).
 const runnableLanguages = new Set(['cpp', 'python']);
 
-function fallbackReview(language) {
-  return {
-    quality: `The ${language.toUpperCase()} code is readable. Keep variable names clear and validate input before using it.`,
-    time: 'Time Complexity: O(1) for the starter sum example.',
-    space: 'Space Complexity: O(1), because it only stores a few scalar values.',
-    tips: 'Optimization tips: handle missing input, avoid unnecessary globals, and split larger logic into small functions.',
-  };
-}
-
 function CompilerPage() {
   const [language, setLanguage] = useState('cpp');
   const [fileName, setFileName] = useState('main.cpp');
@@ -63,9 +55,12 @@ function CompilerPage() {
   const [submissions, setSubmissions] = useState([]);
   const [activeSubmissionId, setActiveSubmissionId] = useState(null);
   const [history, setHistory] = useState([]);
-  const [review, setReview] = useState(fallbackReview('cpp'));
   const [isBusy, setIsBusy] = useState(false);
-  const [isReviewing, setIsReviewing] = useState(false);
+
+  // AI review: a real markdown string from Gemini + a small state machine.
+  const [review, setReview] = useState('');
+  const [reviewState, setReviewState] = useState('idle'); // idle | loading | ready | error
+  const [reviewError, setReviewError] = useState('');
 
   const currentFileName = useMemo(() => {
     if (fileName.includes('.')) return fileName;
@@ -76,6 +71,12 @@ function CompilerPage() {
     loadSubmissions();
   }, []);
 
+  function resetReview() {
+    setReview('');
+    setReviewError('');
+    setReviewState('idle');
+  }
+
   function handleLanguageChange(nextLanguage) {
     setLanguage(nextLanguage);
     setCode(starterCode[nextLanguage]);
@@ -85,7 +86,7 @@ function CompilerPage() {
       ? 'Run your code to see output.'
       : 'Only C++ and Python can be run right now.');
     setStatus('Ready');
-    setReview(fallbackReview(nextLanguage));
+    resetReview();
   }
 
   async function loadSubmissions() {
@@ -151,23 +152,19 @@ function CompilerPage() {
   }
 
   async function handleReview() {
-    setIsReviewing(true);
+    setReviewState('loading');
+    setReviewError('');
 
     try {
       const { data } = await api.post('/ai/review', { language, code, input: stdin, output });
-      setReview({
-        quality: data.review,
-        time: 'Time Complexity: See Gemini review above. Add explicit complexity notes in your solution comments for best judging.',
-        space: 'Space Complexity: See Gemini review above. Watch auxiliary containers and recursion depth.',
-        tips: 'Optimization tips: compare against constraints, reduce repeated work, and prefer standard library algorithms when they simplify intent.',
-      });
+      setReview(data.review || '');
+      setReviewState('ready');
     } catch (error) {
-      setReview({
-        ...fallbackReview(language),
-        quality: error.response?.data?.detail || 'AI review failed. Check GEMINI_API_KEY in the backend .env file.',
-      });
-    } finally {
-      setIsReviewing(false);
+      setReviewError(
+        error.response?.data?.detail
+        || 'AI review failed. Check that GEMINI_API_KEY is set in the backend .env file.',
+      );
+      setReviewState('error');
     }
   }
 
@@ -178,11 +175,11 @@ function CompilerPage() {
     setCode(submission.code);
     setOutput(submission.output || 'Saved file loaded.');
     setStatus('Loaded');
-    setReview(fallbackReview(submission.language));
+    resetReview();
   }
 
   return (
-    <main className="min-h-screen bg-[#0d1117] text-slate-100">
+    <main className="flex min-h-screen flex-col bg-[#0d1117] text-slate-100 lg:h-screen lg:overflow-hidden">
       <CompilerNavbar
         language={language}
         onLanguageChange={handleLanguageChange}
@@ -191,7 +188,7 @@ function CompilerPage() {
         isBusy={isBusy}
       />
 
-      <div className="flex min-h-[calc(100vh-4rem)]">
+      <div className="flex min-h-0 flex-1">
         <Sidebar
           submissions={submissions}
           history={history}
@@ -199,8 +196,8 @@ function CompilerPage() {
           onOpenSubmission={openSubmission}
         />
 
-        <section className="min-w-0 flex-1 p-3 lg:p-5">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-800 bg-[#161b22] px-4 py-3">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col p-3 lg:p-5">
+          <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-800 bg-[#161b22] px-4 py-3">
             <div className="flex min-w-0 items-center gap-2">
               <FileText className="shrink-0 text-blue-400" size={18} />
               <input
@@ -212,40 +209,40 @@ function CompilerPage() {
             <p className={`text-sm font-semibold ${status === 'Failed' ? 'text-rose-300' : 'text-emerald-300'}`}>{status}</p>
           </div>
 
-          <section className="overflow-hidden rounded-lg border border-slate-800 bg-[#1e1e1e]">
-            <div className="h-[58vh] min-h-[420px]">
-              <Editor
-                height="100%"
-                language={monacoLanguage[language]}
-                path={currentFileName}
-                theme="vs-dark"
-                value={code}
-                onChange={(value) => setCode(value || '')}
-                options={{
-                  automaticLayout: true,
-                  fontSize: 15,
-                  fontFamily: 'Cascadia Code, Fira Code, Consolas, monospace',
-                  minimap: { enabled: true },
-                  scrollBeyondLastLine: false,
-                  wordWrap: 'on',
-                  padding: { top: 16, bottom: 16 },
-                }}
-              />
-            </div>
+          {/* Editor flexes to fill the leftover vertical space. */}
+          <section className="min-h-[320px] flex-1 overflow-hidden rounded-lg border border-slate-800 bg-[#1e1e1e]">
+            <Editor
+              height="100%"
+              language={monacoLanguage[language]}
+              path={currentFileName}
+              theme="vs-dark"
+              value={code}
+              onChange={(value) => setCode(value || '')}
+              options={{
+                automaticLayout: true,
+                fontSize: 15,
+                fontFamily: 'Cascadia Code, Fira Code, Consolas, monospace',
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                padding: { top: 16, bottom: 16 },
+              }}
+            />
           </section>
 
-          <section className="mt-4 grid gap-4 lg:grid-cols-3">
-            <Panel title="Input" icon={<TextCursorInput size={16} />}>
+          {/* Fixed-height bottom row: Input / Output / AI Review. Each scrolls internally. */}
+          <div className="mt-3 grid shrink-0 gap-3 lg:h-52 lg:grid-cols-3">
+            <Panel title="Input" icon={<TextCursorInput size={16} />} className="flex flex-col">
               <textarea
-                className="h-52 w-full resize-none bg-[#0d1117] p-4 font-mono text-sm text-slate-100 outline-none placeholder:text-slate-600"
+                className="h-40 w-full flex-1 resize-none bg-[#0d1117] p-4 font-mono text-sm text-slate-100 outline-none placeholder:text-slate-600"
                 placeholder="Custom input"
                 value={stdin}
                 onChange={(event) => setStdin(event.target.value)}
               />
             </Panel>
 
-            <Panel title="Output" icon={<Terminal size={16} />}>
-              <pre className="h-52 overflow-auto bg-[#050812] p-4 font-mono text-sm leading-6 text-emerald-200">
+            <Panel title="Output" icon={<Terminal size={16} />} className="flex flex-col">
+              <pre className="h-40 flex-1 overflow-auto bg-[#050812] p-4 font-mono text-sm leading-6 text-emerald-200">
                 {output}
               </pre>
             </Panel>
@@ -253,24 +250,34 @@ function CompilerPage() {
             <Panel
               title="AI Review"
               icon={<Bot size={16} />}
+              className="flex flex-col"
               actions={(
                 <button
                   className="rounded-md border border-violet-500/50 px-3 py-1 text-xs font-semibold text-violet-200 hover:bg-violet-500/10 disabled:opacity-60"
                   onClick={handleReview}
-                  disabled={isReviewing}
+                  disabled={reviewState === 'loading'}
                 >
-                  {isReviewing ? 'Reviewing' : 'Ask AI'}
+                  {reviewState === 'loading' ? 'Reviewing…' : 'Ask AI'}
                 </button>
               )}
             >
-              <div className="h-52 overflow-auto bg-[#0d1117] p-4 text-sm leading-6 text-slate-300">
-                <p className="mb-3 flex gap-2"><Lightbulb className="mt-1 shrink-0 text-amber-300" size={15} />{review.quality}</p>
-                <p className="mb-3 flex gap-2"><Cpu className="mt-1 shrink-0 text-blue-300" size={15} />{review.time}</p>
-                <p className="mb-3 flex gap-2"><Cpu className="mt-1 shrink-0 text-emerald-300" size={15} />{review.space}</p>
-                <p className="flex gap-2"><Lightbulb className="mt-1 shrink-0 text-violet-300" size={15} />{review.tips}</p>
+              <div className="h-40 flex-1 overflow-auto bg-[#0d1117] px-4 py-3">
+                {reviewState === 'idle' && (
+                  <p className="text-sm text-slate-500">
+                    Click <span className="font-semibold text-violet-300">Ask AI</span> for a review of your code —
+                    correctness, complexity, and tips.
+                  </p>
+                )}
+                {reviewState === 'loading' && (
+                  <p className="text-sm text-slate-400">Asking Gemini to review your code…</p>
+                )}
+                {reviewState === 'error' && (
+                  <p className="text-sm text-rose-300">{reviewError}</p>
+                )}
+                {reviewState === 'ready' && <Markdown text={review} />}
               </div>
             </Panel>
-          </section>
+          </div>
         </section>
       </div>
     </main>

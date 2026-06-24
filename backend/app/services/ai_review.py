@@ -1,4 +1,4 @@
-"""Asks Google Gemini to review a piece of C++ code.
+"""Asks Google Gemini to review a piece of code in any supported language.
 
 This service knows nothing about FastAPI. When something goes wrong it raises
 :class:`AIReviewError` with a suggested HTTP status code, and the router decides
@@ -28,12 +28,19 @@ class AIReviewError(Exception):
 
 
 def _build_prompt(language: str, code: str, program_input: str | None, program_output: str | None) -> str:
-    """Compose the reviewer prompt sent to Gemini."""
+    """Compose the reviewer prompt sent to Gemini.
+
+    The prompt is parameterised by ``language`` so the model reviews the code as
+    what it actually is (the editor supports more than C++), and the answer is
+    asked for as short markdown so the frontend can render headings/bullets.
+    """
     return f"""
-You are an expert C++ code reviewer for an online compiler.
+You are an expert {language} code reviewer for an online compiler.
 Review the user's code with concise, practical feedback.
-Mention correctness risks, edge cases, complexity, readability, and one improved snippet only if useful.
-Keep the answer under 180 words.
+Mention correctness risks, edge cases, time/space complexity, readability, and
+one improved snippet only if it genuinely helps.
+Format the answer as short markdown (use **bold** labels and `-` bullet points).
+Keep it under 180 words.
 
 Language: {language}
 Input:
@@ -43,7 +50,7 @@ Program output:
 {program_output or "(not run yet)"}
 
 Code:
-```cpp
+```{language}
 {code}
 ```
 """

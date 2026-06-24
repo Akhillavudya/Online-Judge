@@ -49,7 +49,7 @@ class Settings:
 
     # --- AI code review (Google Gemini) ----------------------------------
     GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 
 
 # Importable singleton used throughout the codebase: ``from app.config import settings``.
