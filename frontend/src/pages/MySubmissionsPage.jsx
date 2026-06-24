@@ -18,22 +18,32 @@ function verdictInfo(code) {
   return verdictMeta[code] || { label: code, style: 'bg-slate-500/15 text-slate-300 border-slate-500/40' };
 }
 
+const PAGE_SIZE = 20;
+
 function MySubmissionsPage() {
   const [submissions, setSubmissions] = useState([]);
   const [status, setStatus] = useState('loading'); // loading | ready | error
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     async function loadSubmissions() {
+      setStatus('loading');
       try {
-        const { data } = await api.get('/me/submissions');
+        const { data } = await api.get('/me/submissions', {
+          params: { page, limit: PAGE_SIZE },
+        });
         setSubmissions(data.submissions);
+        setTotal(data.total ?? data.submissions.length);
         setStatus('ready');
       } catch {
         setStatus('error');
       }
     }
     loadSubmissions();
-  }, []);
+  }, [page]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <main className="min-h-screen bg-[#0d1117] text-slate-100">
@@ -95,6 +105,32 @@ function MySubmissionsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {status === 'ready' && total > PAGE_SIZE && (
+            <div className="flex items-center justify-between border-t border-slate-800 px-4 py-3 text-sm">
+              <span className="text-slate-500">
+                Page {page} of {totalPages} · {total} submissions
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="rounded-md border border-slate-700 px-3 py-1 text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="rounded-md border border-slate-700 px-3 py-1 text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </Panel>

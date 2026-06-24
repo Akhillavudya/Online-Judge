@@ -91,7 +91,8 @@ function CompilerPage() {
 
   async function loadSubmissions() {
     try {
-      const { data } = await api.get('/submissions');
+      // The sidebar shows every saved snippet, so ask for the max page size.
+      const { data } = await api.get('/submissions', { params: { limit: 100 } });
       setSubmissions(data.submissions);
     } catch {
       setSubmissions([]);

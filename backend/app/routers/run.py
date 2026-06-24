@@ -1,16 +1,17 @@
 """The code-execution endpoint: compile and run submitted code (C++ or Python)."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.schemas.run import RunRequest
 from app.services.executor import execute_code
 from app.services.file_manager import generate_file
 from app.services.languages import SUPPORTED_LANGUAGES, get_language
+from app.services.rate_limit import run_rate_limit
 
 router = APIRouter(tags=["run"])
 
 
-@router.post("/run")
+@router.post("/run", dependencies=[Depends(run_rate_limit)])
 async def run_code(request: RunRequest):
     """Write the code to disk, compile & run it, and return the program output."""
     # Reject empty programs before touching the filesystem.

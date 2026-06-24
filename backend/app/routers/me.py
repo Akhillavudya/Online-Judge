@@ -11,7 +11,7 @@ under ``/problems/{slug}/submissions``.
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.db.repositories import judge_submissions
 from app.dependencies import get_current_user
@@ -23,10 +23,21 @@ router = APIRouter(prefix="/me", tags=["me"])
 @router.get("/submissions")
 def list_my_submissions(
     current_user: Annotated[sqlite3.Row, Depends(get_current_user)],
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
-    """Return every judged attempt by the current user, across all problems."""
-    rows = judge_submissions.list_all_judge_submissions(current_user["id"])
-    return {"submissions": [UserSubmissionOut.from_row(row) for row in rows]}
+    """Return a page of the current user's judged attempts, across all problems."""
+    offset = (page - 1) * limit
+    rows = judge_submissions.list_all_judge_submissions(
+        current_user["id"], limit=limit, offset=offset
+    )
+    total = judge_submissions.count_all_judge_submissions(current_user["id"])
+    return {
+        "submissions": [UserSubmissionOut.from_row(row) for row in rows],
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
 
 
 @router.get("/solved")

@@ -49,46 +49,79 @@ def create_judge_submission(
         ).fetchone()
 
 
-def list_judge_submissions(user_id: int, problem_id: int) -> list[sqlite3.Row]:
-    """Return a user's attempts at one problem, newest first."""
+def list_judge_submissions(
+    user_id: int, problem_id: int, limit: int | None = None, offset: int = 0
+) -> list[sqlite3.Row]:
+    """Return a page of a user's attempts at one problem, newest first.
+
+    ``limit=None`` returns every row (back-compatible default); pass a ``limit``
+    (and ``offset``) to fetch one page.
+    """
+    query = """
+        SELECT id, language, verdict, passed_count, total_count, runtime_ms, created_at
+        FROM judge_submissions
+        WHERE user_id = ? AND problem_id = ?
+        ORDER BY id DESC
+    """
+    params: list = [user_id, problem_id]
+    if limit is not None:
+        query += " LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
     with get_connection() as connection:
-        return connection.execute(
-            """
-            SELECT id, language, verdict, passed_count, total_count, runtime_ms, created_at
-            FROM judge_submissions
-            WHERE user_id = ? AND problem_id = ?
-            ORDER BY id DESC
-            """,
+        return connection.execute(query, params).fetchall()
+
+
+def count_judge_submissions(user_id: int, problem_id: int) -> int:
+    """Total number of a user's attempts at one problem (for pagination)."""
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT COUNT(*) AS total FROM judge_submissions WHERE user_id = ? AND problem_id = ?",
             (user_id, problem_id),
-        ).fetchall()
+        ).fetchone()
+    return row["total"]
 
 
-def list_all_judge_submissions(user_id: int) -> list[sqlite3.Row]:
-    """Return ALL of a user's judged attempts across every problem, newest first.
+def list_all_judge_submissions(
+    user_id: int, limit: int | None = None, offset: int = 0
+) -> list[sqlite3.Row]:
+    """Return a page of a user's judged attempts across every problem, newest first.
 
     Joins ``problems`` so each row carries the problem's title and slug, which the
-    "My Submissions" page uses to label and link each attempt.
+    "My Submissions" page uses to label and link each attempt. ``limit=None``
+    returns every row; pass a ``limit``/``offset`` to fetch one page.
     """
+    query = """
+        SELECT
+            js.id,
+            js.language,
+            js.verdict,
+            js.passed_count,
+            js.total_count,
+            js.runtime_ms,
+            js.created_at,
+            p.title AS problem_title,
+            p.slug AS problem_slug
+        FROM judge_submissions AS js
+        JOIN problems AS p ON p.id = js.problem_id
+        WHERE js.user_id = ?
+        ORDER BY js.id DESC
+    """
+    params: list = [user_id]
+    if limit is not None:
+        query += " LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
     with get_connection() as connection:
-        return connection.execute(
-            """
-            SELECT
-                js.id,
-                js.language,
-                js.verdict,
-                js.passed_count,
-                js.total_count,
-                js.runtime_ms,
-                js.created_at,
-                p.title AS problem_title,
-                p.slug AS problem_slug
-            FROM judge_submissions AS js
-            JOIN problems AS p ON p.id = js.problem_id
-            WHERE js.user_id = ?
-            ORDER BY js.id DESC
-            """,
+        return connection.execute(query, params).fetchall()
+
+
+def count_all_judge_submissions(user_id: int) -> int:
+    """Total number of a user's judged attempts across every problem (for pagination)."""
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT COUNT(*) AS total FROM judge_submissions WHERE user_id = ?",
             (user_id,),
-        ).fetchall()
+        ).fetchone()
+    return row["total"]
 
 
 def list_solved_problem_slugs(user_id: int) -> list[str]:

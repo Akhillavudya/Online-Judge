@@ -11,6 +11,7 @@ Problem *creation* and *editing* moved to the admin-only router in Phase 6 — s
 ``routers/admin.py``. The slug helpers below are shared with that router.
 """
 
+import logging
 import re
 import sqlite3
 from typing import Annotated
@@ -28,6 +29,9 @@ from app.schemas.problem import (
 )
 from app.services.judge import judge_submission
 from app.services.languages import SUPPORTED_LANGUAGES
+from app.services.rate_limit import submit_rate_limit
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/problems", tags=["problems"])
 
@@ -100,7 +104,7 @@ def get_problem(slug: str):
     return {"problem": ProblemDetailOut.from_row(problem, sample_rows, problem_tags)}
 
 
-@router.post("/{slug}/submit")
+@router.post("/{slug}/submit", dependencies=[Depends(submit_rate_limit)])
 def submit_solution(
     slug: str,
     request: SubmitRequest,
@@ -140,6 +144,20 @@ def submit_solution(
         runtime_ms=report["runtime_ms"],
     )
 
+    # Audit line for every judged submission — useful for debugging verdicts and
+    # spotting abuse without digging through the database.
+    logger.info(
+        "Judged submission #%s: user=%s problem=%s lang=%s verdict=%s %s/%s %sms",
+        saved["id"],
+        current_user["id"],
+        slug,
+        request.language,
+        report["verdict"],
+        report["passed_count"],
+        report["total_count"],
+        report["runtime_ms"],
+    )
+
     return {
         "result": JudgeResultOut(
             id=saved["id"],
@@ -158,11 +176,22 @@ def submit_solution(
 def list_problem_submissions(
     slug: str,
     current_user: Annotated[sqlite3.Row, Depends(get_current_user)],
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
-    """Return the current user's previous attempts at this problem (newest first)."""
+    """Return a page of the current user's attempts at this problem (newest first)."""
     problem = problems.get_problem_by_slug(slug)
     if not problem:
         raise HTTPException(status_code=404, detail="Problem not found.")
 
-    rows = judge_submissions.list_judge_submissions(current_user["id"], problem["id"])
-    return {"submissions": [JudgeSubmissionOut.from_row(row) for row in rows]}
+    offset = (page - 1) * limit
+    rows = judge_submissions.list_judge_submissions(
+        current_user["id"], problem["id"], limit=limit, offset=offset
+    )
+    total = judge_submissions.count_judge_submissions(current_user["id"], problem["id"])
+    return {
+        "submissions": [JudgeSubmissionOut.from_row(row) for row in rows],
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }

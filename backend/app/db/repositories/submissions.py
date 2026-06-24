@@ -34,17 +34,35 @@ def create_submission(
         ).fetchone()
 
 
-def list_submissions(user_id: int) -> list[sqlite3.Row]:
-    """Return all of a user's submissions, newest update first."""
+def list_submissions(
+    user_id: int, limit: int | None = None, offset: int = 0
+) -> list[sqlite3.Row]:
+    """Return a page of a user's submissions, newest update first.
+
+    ``limit=None`` returns every row (back-compatible default); pass a ``limit``
+    (and ``offset``) to fetch one page.
+    """
+    query = """
+        SELECT * FROM submissions
+        WHERE user_id = ?
+        ORDER BY updated_at DESC
+    """
+    params: list = [user_id]
+    if limit is not None:
+        query += " LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
     with get_connection() as connection:
-        return connection.execute(
-            """
-            SELECT * FROM submissions
-            WHERE user_id = ?
-            ORDER BY updated_at DESC
-            """,
+        return connection.execute(query, params).fetchall()
+
+
+def count_submissions(user_id: int) -> int:
+    """Total number of a user's saved submissions (for pagination)."""
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT COUNT(*) AS total FROM submissions WHERE user_id = ?",
             (user_id,),
-        ).fetchall()
+        ).fetchone()
+    return row["total"]
 
 
 def get_submission(submission_id: int, user_id: int) -> sqlite3.Row | None:

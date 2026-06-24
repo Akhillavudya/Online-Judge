@@ -3,7 +3,7 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.db.repositories import submissions
 from app.dependencies import get_current_user
@@ -45,10 +45,21 @@ def create_submission(
 
 
 @router.get("")
-def list_submissions(current_user: Annotated[sqlite3.Row, Depends(get_current_user)]):
-    """List the current user's submissions, newest first."""
-    rows = submissions.list_submissions(current_user["id"])
-    return {"submissions": [SubmissionOut.from_row(row) for row in rows]}
+def list_submissions(
+    current_user: Annotated[sqlite3.Row, Depends(get_current_user)],
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+):
+    """List a page of the current user's saved submissions, newest first."""
+    offset = (page - 1) * limit
+    rows = submissions.list_submissions(current_user["id"], limit=limit, offset=offset)
+    total = submissions.count_submissions(current_user["id"])
+    return {
+        "submissions": [SubmissionOut.from_row(row) for row in rows],
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
 
 
 @router.get("/{submission_id}")

@@ -36,8 +36,33 @@ class Settings:
     """
 
     # --- Web / CORS -------------------------------------------------------
-    # The frontend origin allowed to call this API from the browser.
-    CORS_ORIGIN: str = os.getenv("CORS_ORIGIN", "http://localhost:5173")
+    # The frontend origin(s) allowed to call this API from the browser. In
+    # production you may serve the frontend from more than one host (e.g. a
+    # Vercel preview URL + the real domain), so this accepts a comma-separated
+    # list. ``CORS_ORIGINS`` is preferred; ``CORS_ORIGIN`` is kept for backwards
+    # compatibility. Example: ``CORS_ORIGINS=https://app.example.com,https://www.example.com``.
+    CORS_ORIGINS: list[str] = [
+        origin.strip()
+        for origin in (
+            os.getenv("CORS_ORIGINS")
+            or os.getenv("CORS_ORIGIN", "http://localhost:5173")
+        ).split(",")
+        if origin.strip()
+    ]
+
+    # --- Logging ----------------------------------------------------------
+    # Root log level for the backend (DEBUG/INFO/WARNING/ERROR). INFO logs each
+    # request + every judged submission; bump to WARNING to quiet things down.
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+
+    # --- Rate limiting (Phase 9) -----------------------------------------
+    # Protect the expensive compile/run endpoints from abuse. Each limit is
+    # "max requests per window (seconds)", counted per user (or per IP when not
+    # logged in). Set the limit to 0 to disable that limiter entirely.
+    RUN_RATE_LIMIT: int = int(os.getenv("RUN_RATE_LIMIT", "30"))
+    RUN_RATE_WINDOW_S: int = int(os.getenv("RUN_RATE_WINDOW_S", "60"))
+    SUBMIT_RATE_LIMIT: int = int(os.getenv("SUBMIT_RATE_LIMIT", "20"))
+    SUBMIT_RATE_WINDOW_S: int = int(os.getenv("SUBMIT_RATE_WINDOW_S", "60"))
 
     # --- Database ---------------------------------------------------------
     # SQLite file lives in the backend root so it survives across restarts.

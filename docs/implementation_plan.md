@@ -64,7 +64,7 @@ earlier ones exist. Suggested effort assumes part-time work.
 | 6 | Roles & admin panel | Shows authorization, not just authentication |
 | 7 | Profiles & leaderboard | Shows aggregation queries; engagement |
 | 8 | Secure sandboxed execution | **Big interview talking point** |
-| 9 | Hardening (pagination, rate limit, validation) | Shows production awareness |
+| 9 ✅ | Hardening (pagination, rate limit, validation) | Shows production awareness |
 | 10 | Testing + CI | Shows engineering maturity |
 | 11 | Deployment | Shows you can ship |
 | 12 | Optional wow-features (contests, etc.) | Stretch goals |
@@ -306,7 +306,21 @@ Docker-in-deploy is too much, at minimum document the risk and the plan.)
 
 ---
 
-### Phase 9 — Hardening for the real world
+### Phase 9 — Hardening for the real world ✅ DONE
+
+> Implemented — see `docs/backend_explanation/10_hardening.md` and
+> `docs/frontend_explanation/09_pagination.md`. List endpoints (`/me/submissions`,
+> `/submissions`, `/problems/{slug}/submissions`) now take `page`/`limit` and
+> return a `total` (repos gained optional `LIMIT`/`OFFSET` + `count_*` helpers);
+> the My Submissions page got a Prev/Next pager. A hand-rolled fixed-window
+> limiter (`services/rate_limit.py`, `RateLimit` dependency keyed by token or IP)
+> guards `/run` and `/submit` (429 + `Retry-After`, configurable, `0` disables).
+> `main.py` configures one log format/level (`logging_config.py`), logs one line
+> per request + a verdict audit line per submission, and adds a catch-all
+> exception handler that logs the traceback but returns a generic
+> `{"detail": "Internal server error."}` (no leaks). CORS is now a configurable
+> list (`CORS_ORIGINS`). Verified live: limiter 429s after the limit, paginated
+> responses return `{items, total, page, limit}`, bad `limit` → 422.
 
 Small, high-signal production touches:
 - **Pagination everywhere** that returns lists.
